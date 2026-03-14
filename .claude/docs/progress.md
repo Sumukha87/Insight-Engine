@@ -6,7 +6,7 @@
 ## Current Phase
 
 **Phase 1 — Data Ingestion & NLP Pipeline**
-Status: NOT STARTED
+Status: IN PROGRESS
 Target: Weeks 1–3
 
 ---
@@ -14,16 +14,16 @@ Target: Weeks 1–3
 ## Phase 1 Checklist
 
 ### Environment Setup
-- [ ] WSL2 Python 3.11 via pyenv confirmed
-- [ ] Docker Desktop WSL2 integration enabled
+- [x] WSL2 Python 3.11 via deadsnakes PPA (pyenv not used — build issues on WSL2, deadsnakes more reliable)
+- [x] Docker Desktop WSL2 integration enabled
 - [ ] `nvidia-smi` shows RTX 4060 in WSL2
 - [ ] Ollama installed in WSL2 with CUDA
 - [ ] `ollama pull mistral` complete
 - [ ] `ollama pull nomic-embed-text` complete
 - [ ] GitHub repo created and connected
 - [ ] DVC initialized (`dvc init`)
-- [ ] `.env` file created from `.env.example`
-- [ ] `docker compose up -d` — all services healthy
+- [x] `.env` file created from `.env.example`
+- [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
 
 ### Data Ingestion
 - [ ] PubMed baseline downloader script written
@@ -113,13 +113,18 @@ Target: Weeks 1–3
 
 | Date | Decision | Reasoning |
 |------|----------|-----------|
-| —    | —        | —         |
+| 2026-03-14 | Python 3.11 via deadsnakes PPA instead of pyenv | pyenv build fails on WSL2 Ubuntu 24.04 due to ensurepip issue |
+| 2026-03-14 | scipy pinned to >=1.10.0,<1.11.0 | scispacy 0.5.4 requires scipy<1.11; only 1.10.x has Python 3.11 wheels |
+| 2026-03-14 | grobid-client-python pinned to 0.1.* | 0.8.* was the Docker image version, not the PyPI package version |
+| 2026-03-14 | Dockerfile for api/celery lives at src/backend/Dockerfile | Keeps service code co-located with its Dockerfile |
+| 2026-03-14 | api/celery/frontend excluded from initial docker compose up | No main.py yet — bring up infra first, app services once code exists |
 
 ## Blockers / Issues
 
 | Issue | Status | Notes |
 |-------|--------|-------|
-| —     | —      | —     |
+| api + celery services not started | Open | Need src/backend/main.py before these can run |
+| frontend service not started | Open | Next.js app exists at src/frontend but no API to connect to yet |
 
 ## Key Numbers (update as work progresses)
 
