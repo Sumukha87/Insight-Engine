@@ -76,7 +76,8 @@ pytest tests/unit/ -v --no-header
 ## Phase Status
 
 See @docs/progress.md for current phase, completed tasks, and next steps.
-
+See @docs/architecture.md for the overall architechure 
+See @docs/stack.md for all the stck we are using 
 ## Coding Conventions
 
 - Python: black formatter, isort imports, type hints on all functions, docstrings on classes.
