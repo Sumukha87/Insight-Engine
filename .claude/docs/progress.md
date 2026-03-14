@@ -20,18 +20,34 @@ Target: Weeks 1–3
 - [x] Ollama running via Docker (not native WSL2) — container name `ollama`, named volume `ollama`, port 11434
 - [x] `ollama pull mistral:v0.3` complete (switched from v0.1 — better instruction following, same size)
 - [x] `ollama pull nomic-embed-text` complete
-- [ ] GitHub repo created and connected
-- [ ] DVC initialized (`dvc init`)
+- [x] GitHub repo created and connected
+- [x] DVC initialized (`dvc init`)
 - [x] `.env` file created from `.env.example`
 - [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
 
 ### Data Ingestion
-- [ ] PubMed baseline downloader script written
-- [ ] arXiv API fetcher written (target domain: Aerospace)
-- [ ] arXiv API fetcher written (target domain: Medical Devices)
-- [ ] USPTO bulk XML downloader written
-- [ ] First batch downloaded: target 50K papers
-- [ ] DVC pipeline stage: `dvc run` for ingestion
+#### Research Sources (free, no auth)
+- [x] arXiv fetcher — ALL 12 domains (src/ingestion/arxiv_fetcher.py)
+- [ ] PubMed baseline downloader (biomedical XML)
+- [ ] CORD-19 bulk dataset download (pre-cleaned research JSON)
+
+#### Patent Sources (free)
+- [ ] USPTO bulk XML downloader
+- [ ] WIPO IP Statistics bulk download (international patents CSV)
+
+#### Commercial Signal Sources (free tier)
+- [ ] ClinicalTrials.gov REST API fetcher (trial phase + tech + status)
+- [ ] GitHub Archive fetcher (stars/forks/activity per repo — "is anyone building this?")
+- [ ] OpenCorporates API fetcher (company → patent linking, free tier)
+
+#### Deferred (paid/commercial)
+- [ ] Crunchbase (startup funding → patent linking) — defer, paid API
+- [ ] The Data City (real-time industrial classifications) — defer, commercial
+
+#### Pipeline
+- [x] First batch downloaded: 229,498 papers across 12 domains
+- [x] dvc.yaml pipeline defined (fetch_arxiv → ner → relations)
+- [x] Raw data pushed to Google Drive via DVC (OAuth, personal credentials)
 - [ ] Data committed to DVC, `.dvc` files committed to git
 
 ### PDF Parsing
@@ -42,20 +58,20 @@ Target: Weeks 1–3
 - [ ] Parsed output stored in `data/processed/parsed/`
 
 ### NLP Pipeline
-- [ ] spaCy + SciSpacy installed and tested
-- [ ] `en_core_sci_lg` model downloaded
-- [ ] NER pipeline script: JSONL in → entities JSONL out
-- [ ] Entity types confirmed: Technology, Material, Disease, Device, Process
-- [ ] Relation extraction: rule-based v1 (TREATS, IMPROVES, DERIVED_FROM)
-- [ ] First 10K docs processed through NER
+- [x] spaCy 3.7.5 + SciSpacy installed and tested
+- [x] `en_core_sci_lg` model downloaded
+- [x] NER pipeline script: JSONL in → entities JSONL out (src/nlp/ner_pipeline.py)
+- [x] Entity types expanded to 12: Technology, Material, Disease, Device, Compound, Process, Organism, Gene, Algorithm, Phenomenon, Software, Infrastructure
+- [x] Full 229,498 docs processed through NER — 10,779,699 entities extracted (47/doc avg)
+- [x] MLflow experiment logged with per-domain metrics
+- [ ] Relation extraction: rule-based v1 (src/nlp/relation_extractor.py) — NEXT
 - [ ] MLflow experiment created: `nlp-ner-v1`
-- [ ] Metrics logged: precision, recall, entity_count_per_domain
-- [ ] MLflow UI shows experiment at localhost:5000
 
 ### Milestone
-- [ ] End-to-end: raw paper → entities → MLflow log working
-- [ ] Processed 50K+ papers through full pipeline
-- [ ] Summary: entity counts per domain documented here
+- [x] End-to-end: raw paper → entities → MLflow log working
+- [x] Processed 229K+ papers through full NER pipeline
+- [ ] Relation extraction complete
+- [ ] Processed data pushed to Google Drive via DVC
 
 ---
 
@@ -131,9 +147,9 @@ Target: Weeks 1–3
 
 ## Key Numbers (update as work progresses)
 
-- Papers ingested: 0
-- Entities extracted: 0
-- Graph nodes: 0
-- Graph edges: 0
+- Papers ingested: 229,498 (12 domains, arXiv)
+- Entities extracted: 10,779,699 (47/doc avg)
+- Graph nodes: 0 (Phase 2)
+- Graph edges: 0 (Phase 2)
 - GraphRAG query latency (p95): —
-- Demo corpus domains: Aerospace, Medical Devices
+- Domains: Aerospace, Medical Devices, Materials, Energy, Biotechnology, Robotics, Quantum, Nanotechnology, Environment, Semiconductors, Pharma, Neuroscience

@@ -40,6 +40,7 @@ See @docs/stack.md for every tool, version, and why it was chosen.
 - **No cloud spend**: everything runs locally. No OpenAI API calls. No AWS. Ollama for LLM, nomic-embed-text for embeddings.
 - **Data is versioned**: never modify raw data files directly. All ingestion output goes through DVC pipelines.
 - **Experiments are tracked**: every NLP model run logs to MLflow. Never run training without `mlflow.start_run()`.
+- **Git is user-only**: never run `git add`, `git commit`, `git push`, or any destructive git command. Only the user touches git.
 
 ## Commands — Exact Strings
 
@@ -85,8 +86,22 @@ pytest tests/unit/ -v --no-header
 - [x] Ollama running via Docker (not native WSL2) — container name `ollama`, named volume `ollama`, port 11434
 - [x] `ollama pull mistral:v0.3` complete (switched from v0.1 — better instruction following, same size)
 - [x] `ollama pull nomic-embed-text` complete
+- [x] GitHub repo created and connected
+- [x] DVC initialized (`dvc init`)
 - [x] `.env` file created from `.env.example`
 - [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
+- [x] arXiv fetcher — ALL 12 domains (src/ingestion/arxiv_fetcher.py)
+- [x] First batch downloaded: 229,498 papers across 12 domains
+- [x] dvc.yaml pipeline defined (fetch_arxiv → ner → relations)
+- [x] Raw data pushed to Google Drive via DVC (OAuth, personal credentials)
+- [x] spaCy 3.7.5 + SciSpacy installed and tested
+- [x] `en_core_sci_lg` model downloaded
+- [x] NER pipeline script: JSONL in → entities JSONL out (src/nlp/ner_pipeline.py)
+- [x] Entity types expanded to 12: Technology, Material, Disease, Device, Compound, Process, Organism, Gene, Algorithm, Phenomenon, Software, Infrastructure
+- [x] Full 229,498 docs processed through NER — 10,779,699 entities extracted (47/doc avg)
+- [x] MLflow experiment logged with per-domain metrics
+- [x] End-to-end: raw paper → entities → MLflow log working
+- [x] Processed 229K+ papers through full NER pipeline
 
 ### Open Blockers
 - api + celery services not started — Need src/backend/main.py before these can run
@@ -98,10 +113,10 @@ pytest tests/unit/ -v --no-header
 - 2026-03-14: aia-auditor docker-compose.yml updated to use named volume `ollama` (Shared Ollama volume across both projects; old bind mount ./ollama_data deleted)
 
 ### Key Numbers
-- Papers ingested: 0
-- Entities extracted: 0
-- Graph nodes: 0
-- Graph edges: 0
+- Papers ingested: 229,498 (12 domains, arXiv)
+- Entities extracted: 10,779,699 (47/doc avg)
+- Graph nodes: 0 (Phase 2)
+- Graph edges: 0 (Phase 2)
 - GraphRAG query latency (p95): —
 
 ## Coding Conventions

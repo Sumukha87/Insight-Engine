@@ -1,0 +1,36 @@
+stages:
+
+  fetch_arxiv:
+    cmd: python -m src.ingestion.arxiv_fetcher --domain all --max-results 5000
+    deps:
+      - src/ingestion/arxiv_fetcher.py
+    outs:
+      - data/raw/arxiv:
+          cache: true
+          push: true
+
+  ner:
+    cmd: python -m src.nlp.ner_pipeline
+    deps:
+      - src/nlp/ner_pipeline.py
+      - data/raw/arxiv
+    outs:
+      - data/processed/entities:
+          cache: true
+          push: true
+    metrics:
+      - metrics/ner_metrics.json:
+          cache: false
+
+  relations:
+    cmd: python -m src.nlp.relation_extractor
+    deps:
+      - src/nlp/relation_extractor.py
+      - data/processed/entities
+    outs:
+      - data/processed/relations:
+          cache: true
+          push: true
+    metrics:
+      - metrics/relation_metrics.json:
+          cache: false

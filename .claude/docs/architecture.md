@@ -71,24 +71,31 @@ Response: { answer, paths[], sources[], confidence }
 ## Neo4j Graph Schema
 
 ### Node Types
-| Label      | Key Properties                          | Description                    |
-|------------|----------------------------------------|--------------------------------|
-| Entity     | name, type, domain, embedding_id       | Core knowledge node            |
-| Paper      | doi, title, year, journal, domain      | Scientific publication         |
-| Patent     | number, title, year, assignee, cpc     | Patent filing                  |
-| Author     | name, institution                      | Person entity                  |
+| Label           | Key Properties                              | Description                          |
+|-----------------|---------------------------------------------|--------------------------------------|
+| Entity          | name, type, domain, embedding_id            | Core knowledge node                  |
+| Paper           | doi, title, year, journal, domain           | Scientific publication (arXiv/PubMed/CORD-19) |
+| Patent          | number, title, year, assignee, cpc, source  | Patent filing (USPTO / WIPO)         |
+| Author          | name, institution                           | Person entity                        |
+| ClinicalTrial   | nct_id, title, phase, status, sponsor, year | ClinicalTrials.gov trial record      |
+| GitHubRepo      | repo_id, name, stars, forks, last_commit    | GitHub repo linked to a paper/patent |
+| Company         | name, country, opencorporates_id            | Company linked to patent/startup     |
 
 ### Entity Types (values of Entity.type)
 `Technology`, `Material`, `Disease`, `Compound`, `Device`, `Process`, `Organism`, `Gene`
 
 ### Edge Types
-| Type            | From → To              | Properties                  |
-|-----------------|------------------------|-----------------------------|
-| MENTIONED_IN    | Entity → Paper/Patent  | position, frequency         |
-| CITES           | Paper → Paper          | year_delta                  |
-| RELATES_TO      | Entity → Entity        | relation, confidence, source|
-| FROM_DOMAIN     | Entity → Domain node   | —                           |
-| AUTHORED_BY     | Paper → Author         | —                           |
+| Type            | From → To                    | Properties                        |
+|-----------------|------------------------------|-----------------------------------|
+| MENTIONED_IN    | Entity → Paper/Patent        | position, frequency               |
+| CITES           | Paper → Paper                | year_delta                        |
+| RELATES_TO      | Entity → Entity              | relation, confidence, source      |
+| FROM_DOMAIN     | Entity → Domain node         | —                                 |
+| AUTHORED_BY     | Paper → Author               | —                                 |
+| TESTED_IN       | Entity → ClinicalTrial       | phase, trial_id                   |
+| BUILT_ON        | Entity → GitHubRepo          | stars, forks, last_commit         |
+| FILED_BY        | Patent → Company             | country, year                     |
+| PATENTED_IN     | Patent → Patent (WIPO→USPTO) | country, year                     |
 
 ### Key Cypher Patterns
 
@@ -122,9 +129,14 @@ RETURN d.name, paper_count ORDER BY paper_count DESC
 ```
 data/
 ├── raw/
+│   ├── arxiv/            # arXiv abstract JSONs (DVC tracked)
 │   ├── pubmed/           # PubMed XML baseline files (DVC tracked)
-│   ├── arxiv/            # arXiv PDFs or abstract JSONs (DVC tracked)
-│   └── uspto/            # USPTO bulk XML (DVC tracked)
+│   ├── cord19/           # CORD-19 bulk research JSON (DVC tracked)
+│   ├── uspto/            # USPTO bulk XML (DVC tracked)
+│   ├── wipo/             # WIPO IP Statistics CSV (DVC tracked)
+│   ├── clinicaltrials/   # ClinicalTrials.gov JSON (DVC tracked)
+│   ├── github/           # GitHub repo activity JSON (DVC tracked)
+│   └── opencorporates/   # Company→patent linking JSON (DVC tracked)
 ├── processed/
 │   ├── parsed/           # Grobid JSON output per paper
 │   ├── entities/         # NER output JSONL per batch
@@ -133,6 +145,22 @@ data/
     ├── nodes.csv         # Ready-to-load node CSVs
     └── edges.csv         # Ready-to-load edge CSVs
 ```
+
+## Signal Pattern: "Success Pattern" Detection
+
+The key insight that makes Insight-Engine valuable:
+
+```
+arXiv paper (year N)
+    └──MENTIONED_IN──► Entity
+                           └──TESTED_IN──► ClinicalTrial (Phase III)
+                           └──BUILT_ON───► GitHubRepo (stars exploding)
+                           └──MENTIONED_IN──► USPTO Patent
+                                                  └──FILED_BY──► Company
+                                                  └──PATENTED_IN──► WIPO (40+ countries)
+```
+
+When all 5 signals align on one Entity = **confirmed cross-domain breakthrough**.
 
 ## Service Dependencies & Startup Order
 

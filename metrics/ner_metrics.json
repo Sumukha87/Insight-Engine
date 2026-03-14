@@ -1,0 +1,67 @@
+{
+  "total_docs": 229498,
+  "total_entities": 10779699,
+  "entities_per_doc": 46.97,
+  "domains": {
+    "aerospace": {
+      "doc_count": 11631,
+      "entity_count": 562048,
+      "entities_per_doc": 48.323274009113575
+    },
+    "biotechnology": {
+      "doc_count": 11352,
+      "entity_count": 505012,
+      "entities_per_doc": 44.48661028893587
+    },
+    "energy": {
+      "doc_count": 24541,
+      "entity_count": 1129871,
+      "entities_per_doc": 46.0401369137362
+    },
+    "environment": {
+      "doc_count": 8485,
+      "entity_count": 418440,
+      "entities_per_doc": 49.315262227460224
+    },
+    "materials": {
+      "doc_count": 25528,
+      "entity_count": 1153821,
+      "entities_per_doc": 45.19825289877781
+    },
+    "medical_devices": {
+      "doc_count": 22973,
+      "entity_count": 1153767,
+      "entities_per_doc": 50.22273973795325
+    },
+    "nanotechnology": {
+      "doc_count": 18608,
+      "entity_count": 810620,
+      "entities_per_doc": 43.562983662940674
+    },
+    "neuroscience": {
+      "doc_count": 26718,
+      "entity_count": 1331787,
+      "entities_per_doc": 49.846058836739275
+    },
+    "pharma": {
+      "doc_count": 10548,
+      "entity_count": 509265,
+      "entities_per_doc": 48.28071672354949
+    },
+    "quantum": {
+      "doc_count": 17404,
+      "entity_count": 728089,
+      "entities_per_doc": 41.834578257871755
+    },
+    "robotics": {
+      "doc_count": 25447,
+      "entity_count": 1279422,
+      "entities_per_doc": 50.27791095217511
+    },
+    "semiconductors": {
+      "doc_count": 26263,
+      "entity_count": 1197557,
+      "entities_per_doc": 45.5986368655523
+    }
+  }
+}
