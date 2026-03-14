@@ -36,15 +36,17 @@ class SourceCitation(BaseModel):
     relevance_score: float
 ```
 
-## Next.js Conventions
+## Next.js Static Hosting Conventions
 
-- `src/app/` App Router structure
-- `src/components/` — reusable UI components (shadcn/ui based)
-- `src/lib/` — utility functions and API client
-- `src/store/` — Zustand stores
-- All API calls through `src/lib/api.ts` client (never fetch directly in components)
-- Use TanStack Query for all server state — no `useState` + `useEffect` for fetching
-- TypeScript strict mode: no `any` types
+- **Build Output:** `output: 'export'` in next.config.mjs (results in `/out` folder).
+- **App Router:** Use `src/app/` but ensure all pages are static-compatible.
+- **Data Fetching:**
+    - Use **TanStack Query** exclusively (Client-side fetching only).
+    - No `getServerSideProps` or dynamic `headers()`/`cookies()` in Server Components.
+    - All pages must be exportable (use `export const dynamic = 'force-static'` if needed).
+- **API Client:** `src/lib/api.ts` must use absolute URLs (e.g., `process.env.NEXT_PUBLIC_API_URL`) since there is no relative proxy/rewrite.
+- **Images:** Use standard `<img>` or Next.js `<Image>` with `unoptimized: true`.
+- **Routing:** Avoid `next/navigation` functions that rely on server-side logic (like `redirect` on the server); use client-side hooks instead.
 
 ## Sigma.js Graph Rendering Pattern
 

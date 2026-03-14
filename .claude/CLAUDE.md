@@ -75,15 +75,41 @@ pytest tests/unit/ -v --no-header
 
 ## Phase Status
 
-See @docs/progress.md for current phase, completed tasks, and next steps.
-See @docs/architecture.md for the overall architechure 
-See @docs/stack.md for all the stck we are using 
+> **Active:** Phase 1 — Data Ingestion & NLP Pipeline — Status: `IN PROGRESS`
+> Full checklist: @docs/progress.md | Architecture: @docs/architecture.md | Stack: @docs/stack.md
+
+### Completed (this phase)
+- [x] WSL2 Python 3.11 via deadsnakes PPA (pyenv not used — build issues on WSL2, deadsnakes more reliable)
+- [x] Docker Desktop WSL2 integration enabled
+- [x] `.env` file created from `.env.example`
+- [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
+
+### Open Blockers
+- api + celery services not started — Need src/backend/main.py before these can run
+- frontend service not started — Next.js app exists at src/frontend but no API to connect to yet
+
+### Recent Decisions
+- 2026-03-14: grobid-client-python pinned to 0.1.* (0.8.* was the Docker image version, not the PyPI package version)
+- 2026-03-14: Dockerfile for api/celery lives at src/backend/Dockerfile (Keeps service code co-located with its Dockerfile)
+- 2026-03-14: api/celery/frontend excluded from initial docker compose up (No main.py yet — bring up infra first, app services once code exists)
+
+### Key Numbers
+- Papers ingested: 0
+- Entities extracted: 0
+- Graph nodes: 0
+- Graph edges: 0
+- GraphRAG query latency (p95): —
+
 ## Coding Conventions
 
 - Python: black formatter, isort imports, type hints on all functions, docstrings on classes.
--Next 14 frontend with static rendering and no SSR
+- Next 14 frontend with static rendering and no SSR go through the api rules for the next 14 Specifications
 - FastAPI: async handlers only. Pydantic v2 models for all request/response shapes.
 - React: functional components only, TypeScript strict mode, Zustand for global state.
 - Cypher: always use parameters, never string interpolation. Use `MERGE` not `CREATE` for entities.
 - Tests: pytest for Python, Vitest for TypeScript. Test files mirror src structure in `tests/`.
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
+
+## Docs
+- See @docs/architecture.md for the overall architechure 
+- See @docs/stack.md for all the stck we are using 
