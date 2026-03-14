@@ -108,7 +108,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: src/backend/Dockerfile
     container_name: ie-api
     ports:
       - "8000:8000"
@@ -136,7 +136,7 @@ services:
   celery:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: src/backend/Dockerfile
     container_name: ie-celery
     command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=2
     environment:
@@ -157,7 +157,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./src/frontend
       dockerfile: Dockerfile
     container_name: ie-frontend
     ports:

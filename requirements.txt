@@ -1,0 +1,5 @@
+-r requirements/ingest.txt
+-r requirements/nlp.txt
+-r requirements/graph.txt
+-r requirements/api.txt
+-r requirements/mlops.txt

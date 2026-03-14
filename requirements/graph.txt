@@ -1,0 +1,8 @@
+# Graph layer — Neo4j driver, Qdrant vector DB, LlamaIndex GraphRAG with Ollama backend
+neo4j==5.*
+qdrant-client==1.9.*
+llama-index==0.10.*
+llama-index-graph-stores-neo4j
+llama-index-vector-stores-qdrant
+llama-index-llms-ollama
+llama-index-embeddings-ollama

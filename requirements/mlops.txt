@@ -1,0 +1,4 @@
+# MLOps — MLflow experiment tracking, DVC data versioning, Prometheus metrics
+mlflow==2.*
+dvc==3.*
+prometheus-client==0.20.*

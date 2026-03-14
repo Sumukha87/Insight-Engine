@@ -1,0 +1,5 @@
+# Ingestion pipeline — PubMed, arXiv, USPTO connectors + Grobid PDF parsing
+grobid-client-python==0.1.*
+requests==2.31.*
+aiohttp==3.9.*
+lxml==5.*

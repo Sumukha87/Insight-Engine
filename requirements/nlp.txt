@@ -1,0 +1,12 @@
+# NLP pipeline — spaCy NER, SciSpacy biomedical models, transformers for relation extraction
+# PyTorch CUDA index — pulls torch with CUDA 12.1 support for RTX 4060
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# scipy 1.10.x: has Python 3.11 wheels (1.9.3 does not) AND satisfies scispacy's scipy<1.11 constraint
+scipy>=1.10.0,<1.11.0
+spacy==3.7.*
+scispacy==0.5.4
+https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_lg-0.5.4.tar.gz
+transformers==4.40.*
+torch==2.3.0+cu121
+sentence-transformers==3.0.*
