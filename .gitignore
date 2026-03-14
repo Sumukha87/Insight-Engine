@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.local
+
+# Claude Code local memory (personal, not shared)
+CLAUDE.local.md
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# Data (tracked by DVC instead)
+data/raw/
+data/processed/
+data/graph/
+!data/.gitkeep
+
+# Volumes (Docker bind mounts)
+volumes/
+
+# MLflow local
+mlruns/
+mlflow.db
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Misc
+.DS_Store
+*.log
+.coverage
