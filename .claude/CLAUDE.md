@@ -81,6 +81,10 @@ pytest tests/unit/ -v --no-header
 ### Completed (this phase)
 - [x] WSL2 Python 3.11 via deadsnakes PPA (pyenv not used — build issues on WSL2, deadsnakes more reliable)
 - [x] Docker Desktop WSL2 integration enabled
+- [x] `nvidia-smi` shows RTX 4060 in WSL2 — GPU confirmed visible
+- [x] Ollama running via Docker (not native WSL2) — container name `ollama`, named volume `ollama`, port 11434
+- [x] `ollama pull mistral:v0.3` complete (switched from v0.1 — better instruction following, same size)
+- [x] `ollama pull nomic-embed-text` complete
 - [x] `.env` file created from `.env.example`
 - [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
 
@@ -89,9 +93,9 @@ pytest tests/unit/ -v --no-header
 - frontend service not started — Next.js app exists at src/frontend but no API to connect to yet
 
 ### Recent Decisions
-- 2026-03-14: grobid-client-python pinned to 0.1.* (0.8.* was the Docker image version, not the PyPI package version)
-- 2026-03-14: Dockerfile for api/celery lives at src/backend/Dockerfile (Keeps service code co-located with its Dockerfile)
-- 2026-03-14: api/celery/frontend excluded from initial docker compose up (No main.py yet — bring up infra first, app services once code exists)
+- 2026-03-14: Ollama runs in Docker (not native WSL2) via named volume `ollama` (Already had image from aia-auditor project; models shared across projects via named volume)
+- 2026-03-14: mistral:v0.3 instead of default mistral (v0.1) (Better instruction following, function calling support, same VRAM cost)
+- 2026-03-14: aia-auditor docker-compose.yml updated to use named volume `ollama` (Shared Ollama volume across both projects; old bind mount ./ollama_data deleted)
 
 ### Key Numbers
 - Papers ingested: 0
@@ -111,5 +115,6 @@ pytest tests/unit/ -v --no-header
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Docs
-- See @docs/architecture.md for the overall architechure 
+- 
+See @docs/architecture.md for the overall architechure 
 - See @docs/stack.md for all the stck we are using 
