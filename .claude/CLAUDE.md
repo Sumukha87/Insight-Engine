@@ -80,6 +80,7 @@ See @docs/progress.md for current phase, completed tasks, and next steps.
 ## Coding Conventions
 
 - Python: black formatter, isort imports, type hints on all functions, docstrings on classes.
+-Next 14 frontend with static rendering and no SSR
 - FastAPI: async handlers only. Pydantic v2 models for all request/response shapes.
 - React: functional components only, TypeScript strict mode, Zustand for global state.
 - Cypher: always use parameters, never string interpolation. Use `MERGE` not `CREATE` for entities.
