@@ -1,0 +1,22 @@
+{
+  "entity_nodes": 1529916,
+  "paper_nodes": 166573,
+  "relates_to_edges": 1583613,
+  "domains": {
+    "medical_devices": 227065,
+    "neuroscience": 223154,
+    "energy": 218395,
+    "aerospace": 164413,
+    "materials": 144234,
+    "biotechnology": 128971,
+    "quantum": 107823,
+    "semiconductors": 86695,
+    "nanotechnology": 69375,
+    "environment": 63986,
+    "robotics": 61629,
+    "pharma": 34176
+  },
+  "entity_merges": 10779699,
+  "paper_merges": 166573,
+  "relation_merges": 2294895
+}

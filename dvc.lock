@@ -1,0 +1,102 @@
+schema: '2.0'
+stages:
+  fetch_arxiv:
+    cmd: python -m src.ingestion.arxiv_fetcher --domain all --max-results 5000
+    deps:
+    - path: src/ingestion/arxiv_fetcher.py
+      hash: md5
+      md5: 524f10ac0a9d49b44a06950e940f1a05
+      size: 9920
+    outs:
+    - path: data/raw/arxiv
+      hash: md5
+      md5: bdc94736586622470174f2d06f50fa8b.dir
+      size: 387897147
+      nfiles: 487
+  ner:
+    cmd: python -m src.nlp.ner_pipeline
+    deps:
+    - path: data/raw/arxiv
+      hash: md5
+      md5: bdc94736586622470174f2d06f50fa8b.dir
+      size: 387897147
+      nfiles: 487
+    - path: src/nlp/ner_pipeline.py
+      hash: md5
+      md5: 61289907203e6ed7b37e0329118dfae2
+      size: 12150
+    params:
+      params.yaml:
+        ner.batch_size: 32
+        ner.min_entity_length: 3
+        ner.model_name: en_core_sci_lg
+    outs:
+    - path: data/processed/entities
+      hash: md5
+      md5: 408b31657c22d1b5e9c92643589ae28a.dir
+      size: 1088821535
+      nfiles: 12
+    - path: metrics/ner_domain_stats.csv
+      hash: md5
+      md5: f16c68597d6ffe1aeb52b953f2daec2d
+      size: 416
+    - path: metrics/ner_metrics.json
+      hash: md5
+      md5: b2008259026c344a431d322a64a994dc
+      size: 1640
+  relations:
+    cmd: python -m src.nlp.relation_extractor
+    deps:
+    - path: data/processed/entities
+      hash: md5
+      md5: 408b31657c22d1b5e9c92643589ae28a.dir
+      size: 1088821535
+      nfiles: 12
+    - path: src/nlp/relation_extractor.py
+      hash: md5
+      md5: ef576ae31dc49624b971fe077f26899b
+      size: 10366
+    params:
+      params.yaml:
+        relations.confidence_threshold: 0.7
+        relations.max_relations_per_doc: 10
+    outs:
+    - path: data/processed/relations
+      hash: md5
+      md5: 578225828ff5b70c6d6f9f15becd10ce.dir
+      size: 364358603
+      nfiles: 12
+    - path: metrics/relation_domain_stats.csv
+      hash: md5
+      md5: 3f37774c2f22ecca3bb55574f475fb0c
+      size: 412
+    - path: metrics/relation_metrics.json
+      hash: md5
+      md5: f0399cd24da26aa2133ff0690ae8b653
+      size: 1605
+  graph_loader:
+    cmd: python -m src.graph.graph_loader
+    deps:
+    - path: data/processed/entities
+      hash: md5
+      md5: 408b31657c22d1b5e9c92643589ae28a.dir
+      size: 1088821535
+      nfiles: 12
+    - path: data/processed/relations
+      hash: md5
+      md5: 578225828ff5b70c6d6f9f15becd10ce.dir
+      size: 364358603
+      nfiles: 12
+    - path: src/graph/graph_loader.py
+      hash: md5
+      md5: b7a548eaa6de250f751aaee0be813819
+      size: 11197
+    params:
+      params.yaml:
+        graph.entity_batch_size: 500
+        graph.relation_batch_size: 1000
+    outs:
+    - path: metrics/graph_metrics.json
+      hash: md5
+      md5: c53ba0e03942cd5cc014f9c86c9a0812
+      size: 500

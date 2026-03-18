@@ -40,6 +40,7 @@ See @docs/stack.md for every tool, version, and why it was chosen.
 - **No cloud spend**: everything runs locally. No OpenAI API calls. No AWS. Ollama for LLM, nomic-embed-text for embeddings.
 - **Data is versioned**: never modify raw data files directly. All ingestion output goes through DVC pipelines.
 - **Experiments are tracked**: every NLP model run logs to MLflow. Never run training without `mlflow.start_run()`.
+- **Git is user-only**: never run `git add`, `git commit`, `git push`, or any destructive git command. Only the user touches git.
 
 ## Commands — Exact Strings
 
@@ -75,14 +76,82 @@ pytest tests/unit/ -v --no-header
 
 ## Phase Status
 
-See @docs/progress.md for current phase, completed tasks, and next steps.
+> **Active:** Phase 1 → Phase 2 transition — Status: `Phase 1 COMPLETE. Phase 2 IN PROGRESS.`
+> Full checklist: @docs/progress.md | Architecture: @docs/architecture.md | Stack: @docs/stack.md
+
+### Completed (this phase)
+- [x] WSL2 Python 3.11 via deadsnakes PPA (pyenv not used — build issues on WSL2, deadsnakes more reliable)
+- [x] Docker Desktop WSL2 integration enabled
+- [x] `nvidia-smi` shows RTX 4060 in WSL2 — GPU confirmed visible
+- [x] Ollama running via Docker (not native WSL2) — container name `ollama`, named volume `ollama`, port 11434
+- [x] `ollama pull mistral:v0.3` complete (switched from v0.1 — better instruction following, same size)
+- [x] `ollama pull nomic-embed-text` complete
+- [x] GitHub repo created and connected
+- [x] DVC initialized (`dvc init`)
+- [x] `.env` file created from `.env.example`
+- [x] `docker compose up -d` — infrastructure services healthy (neo4j, qdrant, grobid, redis, mlflow, prometheus, grafana)
+- [x] arXiv fetcher — ALL 12 domains (src/ingestion/arxiv_fetcher.py)
+- [x] First batch downloaded: 229,498 papers across 12 domains
+- [x] dvc.yaml pipeline defined (fetch_arxiv → ner → relations → graph_loader)
+- [x] Raw data pushed to Google Drive via DVC (OAuth, personal credentials)
+- [x] spaCy 3.7.5 + SciSpacy installed and tested
+- [x] `en_core_sci_lg` model downloaded
+- [x] NER pipeline script: JSONL in → entities JSONL out (src/nlp/ner_pipeline.py)
+- [x] Entity types expanded to 12: Technology, Material, Disease, Device, Compound, Process, Organism, Gene, Algorithm, Phenomenon, Software, Infrastructure
+- [x] Full 229,498 docs processed through NER — 10,779,699 entities extracted (47/doc avg)
+- [x] MLflow experiment `insight-engine-nlp` created and logging to Docker server (:5000)
+- [x] Relation extraction v1 rule-based (src/nlp/relation_extractor.py) — 2,294,895 relations extracted
+- [x] params.yaml created — all pipeline params version-controlled via DVC
+- [x] params.yaml — NER, relations, graph params all tracked
+- [x] dvc.yaml — full 4-stage pipeline: fetch_arxiv → ner → relations → graph_loader
+- [x] DVC plots wired: ner_domain_stats.csv, relation_domain_stats.csv
+- [x] MLflow tracking URI configured — scripts log to Docker server, export MLFLOW_TRACKING_URI in ~/.bashrc
+- [x] `dvc dag` shows full pipeline DAG
+- [x] `dvc metrics show` shows NER + relation metrics
+- [x] Neo4j Community running in Docker at :7474 / :7687
+- [x] Graph schema applied: composite uniqueness constraints + domain/type indexes
+- [x] src/graph/graph_loader.py written — streams entities + relations → Neo4j
+- [x] graph_loader added as Stage 4 in dvc.yaml
+- [x] Graph loaded: 1,529,916 entity nodes | 166,573 paper nodes | 1,583,613 RELATES_TO edges
+- [x] End-to-end: raw paper → entities → relations → Neo4j graph working
+- [x] Full DVC pipeline tracked and reproducible
+- [x] MLflow logging all 3 pipeline stages
+- [x] Neo4j Community running in Docker at :7474 / :7687
+- [x] Graph schema Cypher constraints + indexes applied
+- [x] graph_loader.py: entities + relations JSONL → Neo4j MERGE (src/graph/graph_loader.py)
+- [x] 1,529,916 entity nodes loaded
+- [x] 1,583,613 RELATES_TO edges loaded
+
+### Open Blockers
+- api + celery services not started — Need src/backend/main.py before these can run
+- frontend service not started — Next.js app exists at src/frontend but no API to connect to yet
+- dvc repro + dvc push not run after 2026-03-18 session — Run at start of next session to lock pipeline state
+
+### Recent Decisions
+- 2026-03-18: Entity MERGE key is (name, type) composite (name alone is not unique — "neural network" can be both Algorithm and Technology. Composite key prevents wrong deduplication)
+- 2026-03-18: graph_loader does NOT load MENTIONED_IN edges in Phase 2 (10.7M MENTIONED_IN edges deferred — not needed for cross-domain path queries. Add in later phase when paper citation traversal is needed)
+- 2026-03-18: Relation extraction v1 is type-pair rule-based, not sentence-level (Fast to build, sufficient for first graph. v2 will use SciSpacy relation model or Mistral to read actual sentence text)
+
+### Key Numbers
+- Papers ingested: 229,498 (12 domains, arXiv)
+- Entities extracted: 10,779,699 (47/doc avg)
+- Relations extracted: 2,294,895
+- Graph entity nodes: 1,529,916
+- Graph paper nodes: 166,573
+- Graph edges (RELATES_TO): 1,583,613
+- GraphRAG query latency (p95): —
 
 ## Coding Conventions
 
 - Python: black formatter, isort imports, type hints on all functions, docstrings on classes.
--Next 14 frontend with static rendering and no SSR
+- Next 14 frontend with static rendering and no SSR go through the api rules for the next 14 Specifications
 - FastAPI: async handlers only. Pydantic v2 models for all request/response shapes.
 - React: functional components only, TypeScript strict mode, Zustand for global state.
 - Cypher: always use parameters, never string interpolation. Use `MERGE` not `CREATE` for entities.
 - Tests: pytest for Python, Vitest for TypeScript. Test files mirror src structure in `tests/`.
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
+
+## Docs
+- 
+See @docs/architecture.md for the overall architechure 
+- See @docs/stack.md for all the stck we are using 
