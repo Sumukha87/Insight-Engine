@@ -14,6 +14,10 @@ stages:
     deps:
       - src/nlp/ner_pipeline.py
       - data/raw/arxiv
+    params:
+      - ner.model_name
+      - ner.batch_size
+      - ner.min_entity_length
     outs:
       - data/processed/entities:
           cache: true
@@ -21,12 +25,33 @@ stages:
     metrics:
       - metrics/ner_metrics.json:
           cache: false
+    plots:
+      - metrics/ner_domain_stats.csv:
+          cache: false
+          x: domain
+          y: entity_count
+          title: "Entities per Domain (NER)"
 
+  graph_loader:
+    cmd: python -m src.graph.graph_loader
+    deps:
+      - src/graph/graph_loader.py
+      - data/processed/entities
+      - data/processed/relations
+    params:
+      - graph.entity_batch_size
+      - graph.relation_batch_size
+    metrics:
+      - metrics/graph_metrics.json:
+          cache: false
   relations:
     cmd: python -m src.nlp.relation_extractor
     deps:
       - src/nlp/relation_extractor.py
       - data/processed/entities
+    params:
+      - relations.confidence_threshold
+      - relations.max_relations_per_doc
     outs:
       - data/processed/relations:
           cache: true
@@ -34,3 +59,9 @@ stages:
     metrics:
       - metrics/relation_metrics.json:
           cache: false
+    plots:
+      - metrics/relation_domain_stats.csv:
+          cache: false
+          x: domain
+          y: relation_count
+          title: "Relations per Domain"

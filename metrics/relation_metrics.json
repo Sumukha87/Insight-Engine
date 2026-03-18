@@ -1,0 +1,68 @@
+{
+  "total_docs": 229498,
+  "total_relations": 2294895,
+  "relations_per_doc": 10.0,
+  "confidence_threshold": 0.7,
+  "domains": {
+    "aerospace": {
+      "doc_count": 11631,
+      "relation_count": 116310,
+      "relations_per_doc": 10.0
+    },
+    "biotechnology": {
+      "doc_count": 11352,
+      "relation_count": 113508,
+      "relations_per_doc": 9.998942917547568
+    },
+    "energy": {
+      "doc_count": 24541,
+      "relation_count": 245410,
+      "relations_per_doc": 10.0
+    },
+    "environment": {
+      "doc_count": 8485,
+      "relation_count": 84850,
+      "relations_per_doc": 10.0
+    },
+    "materials": {
+      "doc_count": 25528,
+      "relation_count": 255253,
+      "relations_per_doc": 9.998942337825133
+    },
+    "medical_devices": {
+      "doc_count": 22973,
+      "relation_count": 229714,
+      "relations_per_doc": 9.99930353023114
+    },
+    "nanotechnology": {
+      "doc_count": 18608,
+      "relation_count": 186057,
+      "relations_per_doc": 9.998763972484953
+    },
+    "neuroscience": {
+      "doc_count": 26718,
+      "relation_count": 267180,
+      "relations_per_doc": 10.0
+    },
+    "pharma": {
+      "doc_count": 10548,
+      "relation_count": 105473,
+      "relations_per_doc": 9.999336367083808
+    },
+    "quantum": {
+      "doc_count": 17404,
+      "relation_count": 174040,
+      "relations_per_doc": 10.0
+    },
+    "robotics": {
+      "doc_count": 25447,
+      "relation_count": 254470,
+      "relations_per_doc": 10.0
+    },
+    "semiconductors": {
+      "doc_count": 26263,
+      "relation_count": 262630,
+      "relations_per_doc": 10.0
+    }
+  }
+}

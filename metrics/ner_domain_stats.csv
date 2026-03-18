@@ -1,0 +1,13 @@
+domain,doc_count,entity_count,entities_per_doc
+aerospace,11631,562048,48.32
+biotechnology,11352,505012,44.49
+energy,24541,1129871,46.04
+environment,8485,418440,49.32
+materials,25528,1153821,45.20
+medical_devices,22973,1153767,50.22
+nanotechnology,18608,810620,43.56
+neuroscience,26718,1331787,49.85
+pharma,10548,509265,48.28
+quantum,17404,728089,41.83
+robotics,25447,1279422,50.28
+semiconductors,26263,1197557,45.60

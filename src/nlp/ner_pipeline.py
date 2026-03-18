@@ -23,10 +23,12 @@ Usage:
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import mlflow
 import spacy
+import yaml
 from spacy.language import Language
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -35,7 +37,15 @@ logger = logging.getLogger(__name__)
 RAW_DIR = Path("data/raw/arxiv")
 OUT_DIR = Path("data/processed/entities")
 METRICS_DIR = Path("metrics")
-MODEL_NAME = "en_core_sci_lg"
+
+# Load params from DVC params.yaml
+_params = yaml.safe_load(Path("params.yaml").read_text())["ner"]
+MODEL_NAME: str = _params["model_name"]
+BATCH_SIZE: int = _params["batch_size"]
+MIN_ENTITY_LENGTH: int = _params["min_entity_length"]
+
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+MLFLOW_EXPERIMENT = "insight-engine-nlp"
 
 # Map spaCy / SciSpacy entity labels → our 8 canonical types
 # en_core_sci_lg produces labels like CHEMICAL, DISEASE, etc.
@@ -180,13 +190,13 @@ def process_domain(nlp: Language, domain: str) -> dict:
             arxiv_ids = [p["arxiv_id"] for p in papers]
 
             # spaCy pipe processes texts in batches — faster than one at a time
-            for doc, arxiv_id in zip(nlp.pipe(texts, batch_size=32), arxiv_ids):
+            for doc, arxiv_id in zip(nlp.pipe(texts, batch_size=BATCH_SIZE), arxiv_ids):
                 entities = []
                 seen_texts: set[str] = set()
 
                 for ent in doc.ents:
                     # Skip very short or duplicate entities
-                    if len(ent.text.strip()) < 3:
+                    if len(ent.text.strip()) < MIN_ENTITY_LENGTH:
                         continue
                     ent_text_clean = ent.text.strip().lower()
                     if ent_text_clean in seen_texts:
@@ -243,8 +253,12 @@ def main() -> None:
     domains = [d.name for d in RAW_DIR.iterdir() if d.is_dir()]
     logger.info(f"Domains found: {domains}")
 
-    with mlflow.start_run(run_name="ner_pipeline"):
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    with mlflow.start_run(run_name="ner_pipeline", tags={"stage": "ner", "source": "arxiv"}):
         mlflow.log_param("model_name", MODEL_NAME)
+        mlflow.log_param("batch_size", BATCH_SIZE)
+        mlflow.log_param("min_entity_length", MIN_ENTITY_LENGTH)
         mlflow.log_param("domains", ",".join(domains))
 
         total_docs = 0
@@ -282,7 +296,16 @@ def main() -> None:
         with open(METRICS_DIR / "ner_metrics.json", "w") as f:
             json.dump(metrics_out, f, indent=2)
 
-        mlflow.log_artifact(str(METRICS_DIR / "ner_metrics.json"))
+        # Write per-domain CSV for DVC plots
+        csv_rows = ["domain,doc_count,entity_count,entities_per_doc"]
+        for domain, m in all_metrics.items():
+            csv_rows.append(
+                f"{domain},{m['doc_count']},{m['entity_count']},{m['entities_per_doc']:.2f}"
+            )
+        with open(METRICS_DIR / "ner_domain_stats.csv", "w") as f:
+            f.write("\n".join(csv_rows) + "\n")
+
+        # Artifacts (metrics files) are versioned by DVC — no need to duplicate in MLflow
 
 
 if __name__ == "__main__":

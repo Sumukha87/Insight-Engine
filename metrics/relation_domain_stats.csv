@@ -1,0 +1,13 @@
+domain,doc_count,relation_count,relations_per_doc
+aerospace,11631,116310,10.00
+biotechnology,11352,113508,10.00
+energy,24541,245410,10.00
+environment,8485,84850,10.00
+materials,25528,255253,10.00
+medical_devices,22973,229714,10.00
+nanotechnology,18608,186057,10.00
+neuroscience,26718,267180,10.00
+pharma,10548,105473,10.00
+quantum,17404,174040,10.00
+robotics,25447,254470,10.00
+semiconductors,26263,262630,10.00

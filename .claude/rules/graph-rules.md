@@ -17,8 +17,14 @@
 ## Required Indexes (apply on fresh Neo4j)
 
 ```cypher
-CREATE CONSTRAINT entity_name IF NOT EXISTS
-  FOR (e:Entity) REQUIRE e.name IS NOT NULL;
+-- NOTE: Property existence (IS NOT NULL) requires Enterprise Edition — do NOT use.
+-- Use uniqueness constraints only (Community Edition supported).
+
+CREATE CONSTRAINT entity_unique IF NOT EXISTS
+  FOR (e:Entity) REQUIRE (e.name, e.type) IS UNIQUE;
+
+CREATE CONSTRAINT paper_unique IF NOT EXISTS
+  FOR (p:Paper) REQUIRE p.doc_id IS UNIQUE;
 
 CREATE INDEX entity_domain IF NOT EXISTS
   FOR (e:Entity) ON (e.domain);
