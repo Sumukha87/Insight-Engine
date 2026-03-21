@@ -17,6 +17,10 @@
 | Data version  | DVC                   | 3.x       | Git-like versioning for data files and pipelines |
 | ML tracking   | MLflow                | 2.x       | Local experiment tracking, model registry        |
 | Orchestration | Apache Airflow        | 2.9.0     | DAG-based pipeline scheduling — installed in .venv, UI at :8080, start with bash scripts/start_airflow.sh |
+| SQL DB        | PostgreSQL            | 16 (Alpine)| User/auth/session storage, Alembic migrations    |
+| SQL ORM       | SQLAlchemy (async)    | 2.0.x     | Mapped columns, asyncpg driver, Alembic          |
+| DB GUI        | pgAdmin 4             | 8.6       | Visual table browser, query tool — port :5050    |
+| Auth          | python-jose + passlib | 3.3/1.7   | JWT (HS256) + bcrypt — no cloud auth dependency  |
 | API           | FastAPI               | 0.111.x   | Async, auto OpenAPI docs, Pydantic v2            |
 | Frontend      | Next.js               | 14.x      | App Router, SSR, easy API routes                 |
 | Graph viz     | Sigma.js              | 3.x       | WebGL, handles 100K+ nodes in browser            |
@@ -62,9 +66,20 @@ llama-index-embeddings-ollama
 fastapi==0.111.*
 uvicorn[standard]==0.29.*
 pydantic==2.*
+pydantic-settings==2.*
 celery==5.*
 redis==5.*
 httpx==0.27.*
+
+# Database
+sqlalchemy==2.0.*
+asyncpg==0.29.*
+alembic==1.13.*
+
+# Auth
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+python-multipart==0.0.*
 ```
 
 ### MLOps (`requirements/mlops.txt`)

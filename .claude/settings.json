@@ -62,6 +62,18 @@
           {
             "type": "command",
             "command": ".claude/hooks/wsl2-path-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-hardcoded-secrets.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-sql-injection.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-dangerous-patterns.sh"
           }
         ]
       }
@@ -72,7 +84,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 scripts/sync_progress.py"
+            "command": "python3 /home/sumukha/Insight-Engine/scripts/sync_progress.py"
           }
         ]
       }

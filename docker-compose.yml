@@ -105,6 +105,39 @@ services:
     depends_on:
       - prometheus
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: ie-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: insight_engine
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d insight_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8.6
+    container_name: ie-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - ./volumes/pgadmin:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -120,6 +153,9 @@ services:
       OLLAMA_HOST: http://host.docker.internal:11434
       REDIS_URL: redis://redis:6379
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/insight_engine
+      SECRET_KEY: ${SECRET_KEY}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
     volumes:
       - ./src:/app/src
       - ./data:/app/data
@@ -129,6 +165,8 @@ services:
       qdrant:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -145,6 +183,8 @@ services:
       QDRANT_HOST: qdrant
       OLLAMA_HOST: http://host.docker.internal:11434
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/insight_engine
+      SECRET_KEY: ${SECRET_KEY}
     volumes:
       - ./src:/app/src
       - ./data:/app/data
@@ -152,6 +192,7 @@ services:
       - redis
       - neo4j
       - qdrant
+      - postgres
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
