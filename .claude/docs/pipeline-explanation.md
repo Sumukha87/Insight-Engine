@@ -310,3 +310,109 @@ stale and re-run on the next `dvc repro`.
 | LlamaIndex GraphRAG layer | Answers natural language questions using graph paths |
 | More data sources | PubMed, USPTO, ClinicalTrials.gov (richer cross-domain signal) |
 | v2 Relation extraction | Sentence-level NLP instead of type-pair rules |
+
+---
+
+## High-Level Flow Diagram (All 6 Stages)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 1 — DATA INGESTION                                   │
+│  src/ingestion/arxiv_fetcher.py                             │
+│                                                             │
+│  arXiv API → fetch 229,498 paper abstracts                  │
+│  12 domains: aerospace, medical_devices, materials...       │
+│  Output: data/raw/arxiv/<domain>/*.json                     │
+│  Tracked by: DVC                                            │
+└────────────────────────┬────────────────────────────────────┘
+                         │ raw paper JSON
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 2 — NER PIPELINE                                     │
+│  src/nlp/ner_pipeline.py                                    │
+│                                                             │
+│  spaCy en_core_sci_lg reads each abstract                   │
+│  Extracts named entities → maps to 12 types                 │
+│  (Technology, Material, Disease, Device...)                 │
+│  10,779,699 entities extracted (47/doc avg)                 │
+│  Output: data/processed/entities/<domain>/entities.jsonl    │
+│  Tracked by: DVC + MLflow                                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ entities JSONL
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 3 — RELATION EXTRACTION                              │
+│  src/nlp/relation_extractor.py                              │
+│                                                             │
+│  Rule-based: looks at entity type pairs in same sentence    │
+│  Maps to 10 relation types (TREATS, IMPROVES, USED_IN...)   │
+│  2,294,895 relations extracted                              │
+│  Output: data/processed/relations/<domain>/relations.jsonl  │
+│  Tracked by: DVC + MLflow                                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ relations JSONL
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 4 — GRAPH LOADING                                    │
+│  src/graph/graph_loader.py                                  │
+│                                                             │
+│  Streams JSONL → Neo4j via MERGE (deduplicates)             │
+│  10.7M entity mentions → 1,529,916 unique Entity nodes      │
+│  166,573 Paper nodes                                        │
+│  1,583,613 RELATES_TO edges                                 │
+│  Tracked by: DVC + MLflow                                   │
+└────────────────────────┬────────────────────────────────────┘
+                         │ live graph in Neo4j
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 5 — EMBEDDING PIPELINE                               │
+│  src/graph/embedding_pipeline.py                            │
+│                                                             │
+│  Streams Entity nodes from Neo4j (not from data/ files)     │
+│  "titanium alloy [Material]" → Ollama nomic-embed-text      │
+│  → 768-dim vector → upsert into Qdrant                      │
+│  → writes embedding_id back onto Neo4j Entity node          │
+└────────────────────────┬────────────────────────────────────┘
+                         │ Neo4j ↔ Qdrant linked via embedding_id
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STAGE 6 — GraphRAG QUERY ENGINE  (not built yet)           │
+│  src/graph/graphrag_query.py                                │
+│                                                             │
+│  User query → embed → Qdrant ANN search → seed entity IDs  │
+│  → Neo4j graph traversal (1..4 hops, cross-domain)         │
+│  → subgraph context assembled                               │
+│  → Mistral via Ollama synthesizes answer + citations        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## What Each Stage Stores
+
+| Stage | Tool | What's stored | Format |
+|-------|------|---------------|--------|
+| 1 — Ingestion | DVC | Raw paper abstracts | JSON files |
+| 2 — NER | DVC + MLflow | Entity mentions per paper | JSONL files |
+| 3 — Relations | DVC + MLflow | Relation pairs per paper | JSONL files |
+| 4 — Graph loading | Neo4j | Deduplicated entity nodes + edges | Graph DB |
+| 5 — Embedding | Qdrant + Neo4j | Vectors per entity + embedding_id link | Vector DB |
+| 6 — Query | Ollama + Neo4j + Qdrant | Synthesized answer + source citations | API response |
+
+## Why data/ Files Are Not the Source of Truth After Stage 4
+
+- The JSONL files contain **10.7M raw mentions** (duplicates included)
+- Neo4j contains **1.5M unique deduplicated nodes** (after MERGE)
+- The embedding pipeline reads from **Neo4j**, not from `data/`
+
+The JSONL files are only needed if you want to re-run the full pipeline from scratch via `dvc repro`.
+
+## What Gets Embedded (Stage 5)
+
+Just the entity nodes — not relationships, not paper text. Each entity becomes one string:
+
+```
+"titanium alloy [Material]"
+"cardiac valve [Device]"
+"CRISPR [Technology]"
+```
+
+That string → 768-dim vector → stored in Qdrant. Qdrant answers: *"given a user query, which entities are the best graph starting points?"* Neo4j handles everything after — relationships, paths, cross-domain connections.

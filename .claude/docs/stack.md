@@ -16,7 +16,7 @@
 | RAG framework | LlamaIndex            | 0.10.x    | KnowledgeGraphIndex connects to Neo4j natively   |
 | Data version  | DVC                   | 3.x       | Git-like versioning for data files and pipelines |
 | ML tracking   | MLflow                | 2.x       | Local experiment tracking, model registry        |
-| Orchestration | Apache Airflow        | 2.x       | DAG-based pipeline scheduling (Phase 2+)         |
+| Orchestration | Apache Airflow        | 2.9.0     | DAG-based pipeline scheduling — installed in .venv, UI at :8080, start with bash scripts/start_airflow.sh |
 | API           | FastAPI               | 0.111.x   | Async, auto OpenAPI docs, Pydantic v2            |
 | Frontend      | Next.js               | 14.x      | App Router, SSR, easy API routes                 |
 | Graph viz     | Sigma.js              | 3.x       | WebGL, handles 100K+ nodes in browser            |
