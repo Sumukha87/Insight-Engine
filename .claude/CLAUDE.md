@@ -121,6 +121,8 @@ pytest tests/unit/ -v --no-header
 - [x] graph_loader.py: entities + relations JSONL → Neo4j MERGE (src/graph/graph_loader.py)
 - [x] 1,529,916 entity nodes loaded
 - [x] 1,583,613 RELATES_TO edges loaded
+- [x] Apache Airflow installed in .venv — DAG at dags/insight_engine_pipeline.py
+- [x] Airflow UI at localhost:8080 — start with: bash scripts/start_airflow.sh
 
 ### Open Blockers
 - api + celery services not started — Need src/backend/main.py before these can run
@@ -135,10 +137,6 @@ pytest tests/unit/ -v --no-header
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
 - Entities extracted: 10,779,699 (47/doc avg)
-- Relations extracted: 2,294,895
-- Graph entity nodes: 1,529,916
-- Graph paper nodes: 166,573
-- Graph edges (RELATES_TO): 1,583,613
 - GraphRAG query latency (p95): —
 
 ## Coding Conventions

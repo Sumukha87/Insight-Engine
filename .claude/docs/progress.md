@@ -104,6 +104,8 @@ Target: Weeks 1–3 (Phase 1 done) → Weeks 4–6 (Phase 2)
 - [ ] `embedding_id` property set on Entity nodes (links Neo4j ↔ Qdrant)
 - [ ] LlamaIndex KnowledgeGraphIndex connected to Neo4j + Qdrant
 - [ ] First GraphRAG query returns answer with source citations
+- [x] Apache Airflow installed in .venv — DAG at dags/insight_engine_pipeline.py
+- [x] Airflow UI at localhost:8080 — start with: bash scripts/start_airflow.sh
 - [ ] Prometheus + Grafana running, dashboard created
 - [ ] MLflow tracking GraphRAG query quality metrics
 
