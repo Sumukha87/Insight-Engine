@@ -236,7 +236,8 @@ def main() -> None:
         mlflow.log_metric("elapsed_seconds", elapsed)
 
         collection_info = qdrant.get_collection(COLLECTION_NAME)
-        mlflow.log_metric("qdrant_vector_count", collection_info.vectors_count)
+        qdrant_count = collection_info.vectors_count or collection_info.points_count or 0
+        mlflow.log_metric("qdrant_vector_count", qdrant_count)
 
         logger.info(
             f"Done — {metrics['entities_embedded']:,} entities embedded in {elapsed:.0f}s "

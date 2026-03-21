@@ -1,5 +1,71 @@
 {
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(docker ps *)",
+      "Bash(docker compose ps *)",
+      "Bash(docker logs *)",
+      "Bash(docker inspect *)",
+      "Bash(dvc status)",
+      "Bash(dvc dag)",
+      "Bash(dvc metrics show)",
+      "Bash(dvc diff)",
+      "Bash(pip show *)",
+      "Bash(pip list *)",
+      "Bash(python --version)",
+      "Bash(nvidia-smi)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(ls *)",
+      "Bash(source *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(git checkout -- *)",
+      "Edit(//mnt/c/**)",
+      "Edit(//mnt/d/**)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-git.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/wsl2-path-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-cloud-spend.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-raw-data.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/wsl2-path-guard.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -7,6 +73,16 @@
           {
             "type": "command",
             "command": "python3 scripts/sync_progress.py"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/docker-health-check.sh"
           }
         ]
       }

@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export AIRFLOW_HOME="$PROJECT_ROOT/.airflow"
 export AIRFLOW__CORE__DAGS_FOLDER="$PROJECT_ROOT/dags"
-export AIRFLOW__CORE__EXECUTOR=LocalExecutor
+export AIRFLOW__CORE__EXECUTOR=SequentialExecutor
 export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="sqlite:///$PROJECT_ROOT/.airflow/airflow.db"
 export AIRFLOW__CORE__LOAD_EXAMPLES=False
 export AIRFLOW__WEBSERVER__SECRET_KEY="insight-engine-local-dev"

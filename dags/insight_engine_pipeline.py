@@ -13,7 +13,6 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 
 PROJECT_ROOT = str(Path(__file__).parent.parent)
 PYTHON = str(Path(__file__).parent.parent / ".venv" / "bin" / "python")
