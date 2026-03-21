@@ -76,7 +76,7 @@ pytest tests/unit/ -v --no-header
 
 ## Phase Status
 
-> **Active:** Phase 1 → Phase 2 transition — Status: `Phase 1 COMPLETE. Phase 2 IN PROGRESS.`
+> **Active:** Phase 2 → Phase 3 transition — Status: `Phase 2 COMPLETE. Phase 3 NEXT.`
 > Full checklist: @docs/progress.md | Architecture: @docs/architecture.md | Stack: @docs/stack.md
 
 ### Completed (this phase)
@@ -94,6 +94,7 @@ pytest tests/unit/ -v --no-header
 - [x] First batch downloaded: 229,498 papers across 12 domains
 - [x] dvc.yaml pipeline defined (fetch_arxiv → ner → relations → graph_loader)
 - [x] Raw data pushed to Google Drive via DVC (OAuth, personal credentials)
+- [x] dvc repro run 2026-03-21 — all 4 stages cached, pipeline locked
 - [x] spaCy 3.7.5 + SciSpacy installed and tested
 - [x] `en_core_sci_lg` model downloaded
 - [x] NER pipeline script: JSONL in → entities JSONL out (src/nlp/ner_pipeline.py)
@@ -113,31 +114,52 @@ pytest tests/unit/ -v --no-header
 - [x] src/graph/graph_loader.py written — streams entities + relations → Neo4j
 - [x] graph_loader added as Stage 4 in dvc.yaml
 - [x] Graph loaded: 1,529,916 entity nodes | 166,573 paper nodes | 1,583,613 RELATES_TO edges
+- [x] First cross-domain Cypher query verified — 1,837,582 cross-domain RELATES_TO edges confirmed
+- [x] Qdrant running in Docker at :6333
+- [x] Embedding pipeline complete — 1,529,916 / 1,529,916 entities embedded (nomic-embed-text, 768-dim)
+- [x] embedding_id property set on all Entity nodes (links Neo4j ↔ Qdrant)
+- [x] Neo4j index on Entity.embedding_id created (fast seed lookup)
+- [x] Qdrant has_edges payload flag set on 517,473 entities (filters to traversable seeds instantly)
+- [x] GraphRAG query engine built: src/graph/graphrag_query.py (Stage 6)
+- [x] First GraphRAG query returns cross-domain answer with Mistral synthesis
 - [x] End-to-end: raw paper → entities → relations → Neo4j graph working
 - [x] Full DVC pipeline tracked and reproducible
 - [x] MLflow logging all 3 pipeline stages
+- [x] First cross-domain Cypher query verified
+- [x] GraphRAG query returns answer — demo query "aerospace materials for cardiac implants" works
+- [x] 20 cross-domain paths found, Mistral synthesizes coherent answer
+- [x] Query latency: ~32s (embedding 1s + Qdrant 0.2s + Neo4j traversal 12s + Mistral 14s)
 - [x] Neo4j Community running in Docker at :7474 / :7687
 - [x] Graph schema Cypher constraints + indexes applied
 - [x] graph_loader.py: entities + relations JSONL → Neo4j MERGE (src/graph/graph_loader.py)
 - [x] 1,529,916 entity nodes loaded
-- [x] 1,583,613 RELATES_TO edges loaded
+- [x] 1,583,613 RELATES_TO edges loaded (1,837,582 are cross-domain)
+- [x] First cross-domain Cypher query tested: "aerospace materials for cardiac implants" — WORKS
+- [x] Qdrant running in Docker at :6333
+- [x] Embedding pipeline: entity text → nomic-embed-text → Qdrant upsert (src/graph/embedding_pipeline.py)
+- [x] `embedding_id` property set on all 1,529,916 Entity nodes
+- [x] Neo4j index on Entity.embedding_id created for fast lookup
+- [x] Qdrant has_edges payload flag: 517,473 entities flagged for instant seed filtering
+- [x] GraphRAG query engine: src/graph/graphrag_query.py — Stage 6 complete
 - [x] Apache Airflow installed in .venv — DAG at dags/insight_engine_pipeline.py
 - [x] Airflow UI at localhost:8080 — start with: bash scripts/start_airflow.sh
+- [x] Demo query works: "aerospace materials for cardiac implants"
+- [x] Answer includes ≥3 cross-domain connections
 
 ### Open Blockers
-- api + celery services not started — Need src/backend/main.py before these can run
-- frontend service not started — Next.js app exists at src/frontend but no API to connect to yet
-- dvc repro + dvc push not run after 2026-03-18 session — Run at start of next session to lock pipeline state
+- api + celery services not started — Need src/backend/main.py before these can run — Phase 3 work
+- frontend service not started — Next.js app exists at src/frontend but no API to connect to yet — Phase 3 work
+- Source paper citations not in GraphRAG answer — RELATES_TO edges have source_paper_id but it is not surfaced in graphrag_query.py response yet
 
 ### Recent Decisions
-- 2026-03-18: Entity MERGE key is (name, type) composite (name alone is not unique — "neural network" can be both Algorithm and Technology. Composite key prevents wrong deduplication)
-- 2026-03-18: graph_loader does NOT load MENTIONED_IN edges in Phase 2 (10.7M MENTIONED_IN edges deferred — not needed for cross-domain path queries. Add in later phase when paper citation traversal is needed)
-- 2026-03-18: Relation extraction v1 is type-pair rule-based, not sentence-level (Fast to build, sufficient for first graph. v2 will use SciSpacy relation model or Mistral to read actual sentence text)
+- 2026-03-21: GraphRAG seed filtering via Qdrant has_edges payload flag (Long-tail entities in Qdrant have 0 RELATES_TO edges (appeared in 1 paper only). Pre-computed has_edges=True on 517,473 entities with edges and stored in Qdrant payload. Qdrant query_filter eliminates Neo4j round-trip — seed search went from 2 min to 0.2s)
+- 2026-03-21: Entity domain field is first-write-wins (Entity.domain is set by whichever paper loaded the entity first via MERGE. Cross-domain detection uses ANY(n IN path WHERE n.domain <> seed.domain) — checks domain diversity across path nodes, not just endpoints)
+- 2026-03-21: Neo4j index on Entity.embedding_id added (No index existed — UNWIND batch lookup was full-scanning 1.5M nodes. Index created: entity_embedding_id RANGE index on Entity.embedding_id)
 
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
 - Entities extracted: 10,779,699 (47/doc avg)
-- GraphRAG query latency (p95): —
+- GraphRAG query latency (p95): ~32s (embed 1s + Qdrant 0.2s + Neo4j traversal 12s + Mistral 14s)
 
 ## Coding Conventions
 
