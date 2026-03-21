@@ -31,6 +31,27 @@ MLOps: DVC for data versioning, MLflow for experiment tracking, Prometheus + Gra
 See @docs/architecture.md for full system design.
 See @docs/stack.md for every tool, version, and why it was chosen.
 
+## SECURITY — TOP PRIORITY
+
+Security is the single most important rule in this project. Every other rule is secondary.
+
+### Absolute Prohibitions
+- **NEVER hardcode secrets, passwords, API keys, or tokens in source code.** Not in Python, not in TypeScript, not in config files, not in tests, not even as examples with real-looking values. Use env vars via `os.environ` or `process.env.NEXT_PUBLIC_*`.
+- **NEVER commit `.env` files.** `.env` is gitignored. Only `.env.example` with placeholder values goes into git.
+- **NEVER use SQL string interpolation.** Always use parameterized queries — SQLAlchemy ORM or `$param` in Cypher. No f-strings, no `.format()`, no `%s` for building queries.
+- **NEVER store raw tokens in the database.** Store SHA-256 hashes only (access_token_hash, token_hash, key_hash).
+- **NEVER expose stack traces or internal errors to API clients.** Use HTTPException with safe messages. Let unhandled exceptions hit the 500 handler.
+- **NEVER disable CORS, CSRF, or auth checks** — not even temporarily, not even "for testing".
+
+### Required Practices
+- **All credentials from env vars**: `SECRET_KEY`, `NEO4J_PASSWORD`, `POSTGRES_PASSWORD`, `DATABASE_URL` — all read from `os.environ` at runtime.
+- **Password hashing**: bcrypt via passlib. Never store plaintext passwords.
+- **JWT validation**: always verify signature + expiry + check session is_revoked in DB.
+- **Input validation**: Pydantic v2 models for all FastAPI request bodies. Zod schemas for all frontend forms.
+- **Dependency security**: no `eval()`, no `exec()`, no `pickle.loads()` on user input, no `dangerouslySetInnerHTML` without sanitization.
+- **SQL injection prevention**: SQLAlchemy ORM for all queries. If raw SQL is needed, always use `text()` with bound parameters.
+- **XSS prevention**: React auto-escapes by default. Never use `dangerouslySetInnerHTML`. Sanitize any user-generated HTML.
+
 ## Key Rules — Always Follow
 
 - **WSL2 paths**: use `/home/$USER/` not `/mnt/c/`. Docker volumes must use WSL2 paths.
@@ -69,6 +90,15 @@ open http://localhost:7474   # or visit in browser
 # Grafana
 open http://localhost:3001
 
+# PostgreSQL
+open http://localhost:5050   # pgAdmin GUI
+
+# Alembic migrations
+source .venv/bin/activate
+export DATABASE_URL="postgresql+asyncpg://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:5432/insight_engine"
+alembic revision --autogenerate -m "description"
+alembic upgrade head
+
 # Tests
 pytest tests/ -v
 pytest tests/unit/ -v --no-header
@@ -76,7 +106,7 @@ pytest tests/unit/ -v --no-header
 
 ## Phase Status
 
-> **Active:** Phase 2 → Phase 3 transition — Status: `Phase 2 COMPLETE. Phase 3 NEXT.`
+> **Active:** Phase 3 — IN PROGRESS — Status: `Phase 2 COMPLETE. Phase 3 ACTIVE.`
 > Full checklist: @docs/progress.md | Architecture: @docs/architecture.md | Stack: @docs/stack.md
 
 ### Completed (this phase)
@@ -145,16 +175,38 @@ pytest tests/unit/ -v --no-header
 - [x] Airflow UI at localhost:8080 — start with: bash scripts/start_airflow.sh
 - [x] Demo query works: "aerospace materials for cardiac implants"
 - [x] Answer includes ≥3 cross-domain connections
+- [x] PostgreSQL 16 running in Docker at :5432 — user/auth/session DB
+- [x] pgAdmin 4 running in Docker at :5050 — DB GUI
+- [x] SQLAlchemy 2.0 async ORM + asyncpg driver configured
+- [x] Alembic migrations initialized — 2 migrations applied (initial_schema, auth_sessions)
+- [x] DB schema: users, organizations, memberships, api_keys, query_logs, usage_quotas, auth_sessions, refresh_tokens
+- [x] .env.example + .env updated with POSTGRES_USER, POSTGRES_PASSWORD, SECRET_KEY, PGADMIN creds
+- [x] docker-compose.yml updated — postgres + pgadmin services, DATABASE_URL wired to api + celery
+- [x] JWT access token (HS256, 60 min) + opaque refresh token (30 days, single-use rotation)
+- [x] Session tracking — auth_sessions table, per-device session listing + revocation
+- [x] Replay detection — reusing consumed refresh token revokes entire session
+- [x] src/backend/auth/security.py — hash_password, verify_password, create_access_token, decode_token, hash_token
+- [x] src/backend/auth/token_service.py — issue_tokens, refresh_tokens, revoke_session_by_token_hash
+- [x] src/backend/auth/deps.py — get_current_user checks session is_revoked + expiry in DB
+- [x] src/backend/db/crud/ — users.py, sessions.py, tokens.py
+- [x] src/backend/main.py — FastAPI app entrypoint
+- [x] POST /auth/register, POST /auth/login, POST /auth/refresh, POST /auth/logout
+- [x] GET /auth/me, GET /auth/sessions, DELETE /auth/sessions/{id}
+- [x] GET /health — checks postgres, neo4j, qdrant, ollama
+- [x] Prometheus metrics wired (/metrics endpoint)
+- [x] src/backend/api/schemas.py — Pydantic v2 models for all request/response shapes
+- [x] Next.js 14 App Router at src/frontend/
+- [x] src/frontend/src/lib/api.ts — typed fetch client for all auth endpoints
+- [x] src/frontend/src/app/signup/page.tsx — full signup form (react-hook-form + zod)
 
 ### Open Blockers
-- api + celery services not started — Need src/backend/main.py before these can run — Phase 3 work
-- frontend service not started — Next.js app exists at src/frontend but no API to connect to yet — Phase 3 work
 - Source paper citations not in GraphRAG answer — RELATES_TO edges have source_paper_id but it is not surfaced in graphrag_query.py response yet
+- SQLAlchemy 2.0 / Airflow conflict in .venv — flask-appbuilder 4.4.1 requires SQLAlchemy<1.5 but api requires 2.0. Docker API image is fine (only installs api.txt). Local .venv has both — Airflow may complain. Run alembic commands from Docker if needed.
 
 ### Recent Decisions
-- 2026-03-21: GraphRAG seed filtering via Qdrant has_edges payload flag (Long-tail entities in Qdrant have 0 RELATES_TO edges (appeared in 1 paper only). Pre-computed has_edges=True on 517,473 entities with edges and stored in Qdrant payload. Qdrant query_filter eliminates Neo4j round-trip — seed search went from 2 min to 0.2s)
-- 2026-03-21: Entity domain field is first-write-wins (Entity.domain is set by whichever paper loaded the entity first via MERGE. Cross-domain detection uses ANY(n IN path WHERE n.domain <> seed.domain) — checks domain diversity across path nodes, not just endpoints)
-- 2026-03-21: Neo4j index on Entity.embedding_id added (No index existed — UNWIND batch lookup was full-scanning 1.5M nodes. Index created: entity_embedding_id RANGE index on Entity.embedding_id)
+- 2026-03-21: JWT access + opaque refresh token auth (Access token: JWT 60min, stateless verify + DB revocation check. Refresh token: opaque 32-byte hex, SHA-256 hashed in DB, 30-day, single-use rotation with replay detection.)
+- 2026-03-21: Entity (name, type) composite MERGE key for User model (User table uses UUID PK, email unique index. Org created on signup with owner membership.)
+- 2026-03-21: Security hooks added (PreToolUse hooks block hardcoded secrets, SQL string interpolation, and credential patterns in code. Security is top priority.)
 
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
@@ -164,10 +216,12 @@ pytest tests/unit/ -v --no-header
 ## Coding Conventions
 
 - Python: black formatter, isort imports, type hints on all functions, docstrings on classes.
-- Next 14 frontend with static rendering and no SSR go through the api rules for the next 14 Specifications
+- Next.js 14 App Router, SSR mode (Node.js server, not static export). See api-rules.md for conventions.
 - FastAPI: async handlers only. Pydantic v2 models for all request/response shapes.
 - React: functional components only, TypeScript strict mode, Zustand for global state.
 - Cypher: always use parameters, never string interpolation. Use `MERGE` not `CREATE` for entities.
+- SQL: always use SQLAlchemy ORM or `text()` with bound params. NEVER use f-strings for SQL.
+- Secrets: all credentials via env vars. Never hardcode passwords, keys, or tokens.
 - Tests: pytest for Python, Vitest for TypeScript. Test files mirror src structure in `tests/`.
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
 

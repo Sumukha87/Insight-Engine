@@ -5,9 +5,9 @@
 
 ## Current Phase
 
-**Phase 2 → Phase 3 transition**
-Status: Phase 2 COMPLETE. Phase 3 NEXT.
-Target: Weeks 4–6 (Phase 2 done) → Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
+**Phase 3 — IN PROGRESS**
+Status: Phase 2 COMPLETE. Phase 3 ACTIVE.
+Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 
 ---
 
@@ -123,10 +123,40 @@ Target: Weeks 4–6 (Phase 2 done) → Weeks 7–9 (Phase 3 — FastAPI + Next.j
 
 ## Phase 3 Checklist
 
-### Web UI & Demo App (Weeks 7–9)
-- [ ] FastAPI endpoints: /query, /graph/explore, /trending, /health
-- [ ] FastAPI /docs working with Pydantic schemas
-- [ ] Next.js app bootstrapped with shadcn/ui
+### Infrastructure (Weeks 7–9)
+- [x] PostgreSQL 16 running in Docker at :5432 — user/auth/session DB
+- [x] pgAdmin 4 running in Docker at :5050 — DB GUI
+- [x] SQLAlchemy 2.0 async ORM + asyncpg driver configured
+- [x] Alembic migrations initialized — 2 migrations applied (initial_schema, auth_sessions)
+- [x] DB schema: users, organizations, memberships, api_keys, query_logs, usage_quotas, auth_sessions, refresh_tokens
+- [x] .env.example + .env updated with POSTGRES_USER, POSTGRES_PASSWORD, SECRET_KEY, PGADMIN creds
+- [x] docker-compose.yml updated — postgres + pgadmin services, DATABASE_URL wired to api + celery
+
+### Auth System
+- [x] JWT access token (HS256, 60 min) + opaque refresh token (30 days, single-use rotation)
+- [x] Session tracking — auth_sessions table, per-device session listing + revocation
+- [x] Replay detection — reusing consumed refresh token revokes entire session
+- [x] src/backend/auth/security.py — hash_password, verify_password, create_access_token, decode_token, hash_token
+- [x] src/backend/auth/token_service.py — issue_tokens, refresh_tokens, revoke_session_by_token_hash
+- [x] src/backend/auth/deps.py — get_current_user checks session is_revoked + expiry in DB
+- [x] src/backend/db/crud/ — users.py, sessions.py, tokens.py
+
+### API
+- [x] src/backend/main.py — FastAPI app entrypoint
+- [x] POST /auth/register, POST /auth/login, POST /auth/refresh, POST /auth/logout
+- [x] GET /auth/me, GET /auth/sessions, DELETE /auth/sessions/{id}
+- [x] GET /health — checks postgres, neo4j, qdrant, ollama
+- [x] Prometheus metrics wired (/metrics endpoint)
+- [x] src/backend/api/schemas.py — Pydantic v2 models for all request/response shapes
+- [ ] FastAPI /docs working with Pydantic schemas (needs API container running)
+- [ ] FastAPI endpoints: /query, /graph/explore, /trending
+- [ ] Wire GraphRAG query engine into /query endpoint
+
+### Frontend
+- [x] Next.js 14 App Router at src/frontend/
+- [x] src/frontend/src/lib/api.ts — typed fetch client for all auth endpoints
+- [x] src/frontend/src/app/signup/page.tsx — full signup form (react-hook-form + zod)
+- [ ] Next.js folder restructure — route groups (auth), (dashboard), middleware.ts
 - [ ] Query interface: text input → streamed answer
 - [ ] Graph explorer: Sigma.js rendering entity neighborhood
 - [ ] Source citations panel below answer
@@ -172,15 +202,22 @@ Target: Weeks 4–6 (Phase 2 done) → Weeks 7–9 (Phase 3 — FastAPI + Next.j
 | 2026-03-21 | GraphRAG seed filtering via Qdrant has_edges payload flag | Long-tail entities in Qdrant have 0 RELATES_TO edges (appeared in 1 paper only). Pre-computed has_edges=True on 517,473 entities with edges and stored in Qdrant payload. Qdrant query_filter eliminates Neo4j round-trip — seed search went from 2 min to 0.2s |
 | 2026-03-21 | Entity domain field is first-write-wins | Entity.domain is set by whichever paper loaded the entity first via MERGE. Cross-domain detection uses ANY(n IN path WHERE n.domain <> seed.domain) — checks domain diversity across path nodes, not just endpoints |
 | 2026-03-21 | Neo4j index on Entity.embedding_id added | No index existed — UNWIND batch lookup was full-scanning 1.5M nodes. Index created: entity_embedding_id RANGE index on Entity.embedding_id |
+| 2026-03-21 | PostgreSQL added for user/auth storage | Neo4j is graph-only, Qdrant is vectors-only — neither suitable for transactional user data. Postgres 16 Alpine added to docker-compose. |
+| 2026-03-21 | pgAdmin 4 added for DB GUI | Easier than psql CLI for inspecting tables during dev. Runs at :5050 in Docker. |
+| 2026-03-21 | Full ORM with SQLAlchemy 2.0 async | FastAPI async handlers need async driver. asyncpg + SQLAlchemy 2.0 mapped columns. Alembic for migrations. |
+| 2026-03-21 | JWT access + opaque refresh token auth | Access token: JWT 60min, stateless verify + DB revocation check. Refresh token: opaque 32-byte hex, SHA-256 hashed in DB, 30-day, single-use rotation with replay detection. |
+| 2026-03-21 | Entity (name, type) composite MERGE key for User model | User table uses UUID PK, email unique index. Org created on signup with owner membership. |
+| 2026-03-21 | Security hooks added | PreToolUse hooks block hardcoded secrets, SQL string interpolation, and credential patterns in code. Security is top priority. |
 
 ## Blockers / Issues
 
 | Issue | Status | Notes |
 |-------|--------|-------|
-| api + celery services not started | Open | Need src/backend/main.py before these can run — Phase 3 work |
-| frontend service not started | Open | Next.js app exists at src/frontend but no API to connect to yet — Phase 3 work |
+| api + celery services not started | Unblocked | src/backend/main.py exists — needs Docker image build to run as container |
+| frontend service not started | Unblocked | signup page built, needs api service running to connect |
 | DVC broken (fsspec conflict) | Resolved | dvc_objects 5.2.0 imports DEFAULT_CALLBACK removed in fsspec 2024.x — patched .venv/lib/python3.11/site-packages/dvc_objects/fs/generic.py with try/except fallback |
 | Source paper citations not in GraphRAG answer | Open | RELATES_TO edges have source_paper_id but it is not surfaced in graphrag_query.py response yet |
+| SQLAlchemy 2.0 / Airflow conflict in .venv | Open | flask-appbuilder 4.4.1 requires SQLAlchemy<1.5 but api requires 2.0. Docker API image is fine (only installs api.txt). Local .venv has both — Airflow may complain. Run alembic commands from Docker if needed. |
 
 ## Key Numbers (update as work progresses)
 
