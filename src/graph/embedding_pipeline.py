@@ -96,8 +96,11 @@ def stream_unembedded_entities(driver: Driver) -> Generator[list[dict], None, No
     """
     Page through all Entity nodes that don't yet have embedding_id.
     Yields pages of {id, name, type, domain} dicts.
+
+    Note: always SKIP 0 — as embedding_id is written back to Neo4j after each
+    page, those entities drop out of the WHERE clause. The next fetch always
+    starts from the top of the remaining unembedded set.
     """
-    skip = 0
     while True:
         with driver.session() as session:
             records = session.run(
@@ -105,9 +108,8 @@ def stream_unembedded_entities(driver: Driver) -> Generator[list[dict], None, No
                 MATCH (e:Entity)
                 WHERE e.embedding_id IS NULL
                 RETURN elementId(e) AS id, e.name AS name, e.type AS type, e.domain AS domain
-                SKIP $skip LIMIT $limit
+                LIMIT $limit
                 """,
-                skip=skip,
                 limit=NEO4J_PAGE_SIZE,
             ).data()
 
@@ -115,7 +117,6 @@ def stream_unembedded_entities(driver: Driver) -> Generator[list[dict], None, No
             break
 
         yield records
-        skip += NEO4J_PAGE_SIZE
 
 
 def write_embedding_ids(driver: Driver, updates: list[dict]) -> None:
