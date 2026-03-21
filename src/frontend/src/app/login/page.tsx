@@ -7,88 +7,30 @@ import { z } from "zod";
 import { api, saveTokens } from "@/lib/api";
 
 const schema = z.object({
-  full_name: z.string().min(2, "Full name is required"),
   email: z.string().email("Enter a valid email"),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain an uppercase letter")
-    .regex(/[0-9]/, "Must contain a number"),
-  org_name: z.string().min(2, "Organisation name is required"),
-  job_title: z.string().optional(),
+  password: z.string().min(1, "Password is required"),
 });
 
 type FormData = z.infer<typeof schema>;
 
-const JOB_TITLES = ["Researcher", "Engineer", "Product", "Executive", "Other"];
-
 const INPUT_CLASS =
   "w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition";
 
-const SELECT_CLASS =
-  "w-full px-4 py-2.5 rounded-xl border border-white/10 bg-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition";
-
-function PasswordStrength({ password }: { password: string }) {
-  const checks = [
-    { label: "8+ chars", ok: password.length >= 8 },
-    { label: "Uppercase", ok: /[A-Z]/.test(password) },
-    { label: "Number", ok: /[0-9]/.test(password) },
-  ];
-  const passed = checks.filter((c) => c.ok).length;
-  const barColors = ["bg-red-500", "bg-amber-400", "bg-emerald-500"];
-
-  if (!password) return null;
-
-  return (
-    <div className="mt-2 space-y-1.5">
-      <div className="flex gap-1.5">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-              i < passed ? barColors[passed - 1] : "bg-white/10"
-            }`}
-          />
-        ))}
-      </div>
-      <div className="flex gap-4">
-        {checks.map((c) => (
-          <span
-            key={c.label}
-            className={`text-xs transition-colors ${c.ok ? "text-emerald-400" : "text-slate-500"}`}
-          >
-            {c.ok ? "✓" : "·"} {c.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export default function SignupPage() {
+export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
-
-  const password = watch("password", "");
 
   async function onSubmit(data: FormData) {
     setServerError(null);
     setLoading(true);
     try {
-      const tokens = await api.register({
-        email: data.email,
-        password: data.password,
-        full_name: data.full_name,
-        org_name: data.org_name,
-        job_title: data.job_title || undefined,
-      });
+      const tokens = await api.login({ email: data.email, password: data.password });
       saveTokens(tokens.access_token, tokens.refresh_token);
       window.location.href = "/dashboard";
     } catch (err) {
@@ -124,26 +66,10 @@ export default function SignupPage() {
 
         {/* Card */}
         <div className="bg-slate-900/80 backdrop-blur-sm border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-lg font-semibold text-white mb-6">Create your account</h2>
+          <h2 className="text-lg font-semibold text-white mb-6">Sign in to your account</h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            {/* Full Name */}
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Full name
-              </label>
-              <input
-                {...register("full_name")}
-                type="text"
-                placeholder="Jane Smith"
-                className={INPUT_CLASS}
-              />
-              {errors.full_name && (
-                <p className="mt-1 text-xs text-red-400">{errors.full_name.message}</p>
-              )}
-            </div>
-
-            {/* Work Email */}
+            {/* Email */}
             <div>
               <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
                 Work email
@@ -167,43 +93,12 @@ export default function SignupPage() {
               <input
                 {...register("password")}
                 type="password"
-                placeholder="Min. 8 characters"
+                placeholder="Your password"
                 className={INPUT_CLASS}
               />
-              <PasswordStrength password={password} />
               {errors.password && (
                 <p className="mt-1 text-xs text-red-400">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Organisation */}
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Organisation
-              </label>
-              <input
-                {...register("org_name")}
-                type="text"
-                placeholder="Acme Research Labs"
-                className={INPUT_CLASS}
-              />
-              {errors.org_name && (
-                <p className="mt-1 text-xs text-red-400">{errors.org_name.message}</p>
-              )}
-            </div>
-
-            {/* Job Title */}
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Job title{" "}
-                <span className="normal-case text-slate-600 font-normal">(optional)</span>
-              </label>
-              <select {...register("job_title")} className={SELECT_CLASS}>
-                <option value="">Select one…</option>
-                {JOB_TITLES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
             </div>
 
             {/* Server error */}
@@ -219,14 +114,14 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full py-2.5 px-4 mt-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:text-indigo-400 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg shadow-indigo-500/20"
             >
-              {loading ? "Creating account…" : "Create account"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            Already have an account?{" "}
-            <a href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-              Sign in
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+              Create one
             </a>
           </p>
         </div>

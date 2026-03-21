@@ -226,6 +226,6 @@ pytest tests/unit/ -v --no-header
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Docs
-- 
-See @docs/architecture.md for the overall architechure 
-- See @docs/stack.md for all the stck we are using 
+- See @docs/architecture.md for the overall architecture
+- See @docs/stack.md for all the stack we are using
+- See @docs/frontend-design.md for the canonical frontend UI theme — ALL new pages and components must follow this
