@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
@@ -50,6 +51,24 @@ from src.backend.db.session import get_db
 # ── Prometheus ────────────────────────────────────────────────────────────────
 REQUEST_COUNT = Counter("api_requests_total", "Total requests", ["endpoint"])
 REQUEST_LATENCY = Histogram("api_request_duration_seconds", "Latency", ["endpoint"])
+
+# GraphRAG quality metrics
+GRAPHRAG_PATHS = Histogram(
+    "graphrag_paths_found", "Cross-domain paths found per query",
+    buckets=[0, 1, 5, 10, 20, 50, 100],
+)
+GRAPHRAG_SEEDS = Histogram(
+    "graphrag_seeds_found", "Seed entities matched per query",
+    buckets=[0, 1, 2, 3, 5, 10],
+)
+GRAPHRAG_CITATIONS = Histogram(
+    "graphrag_citations_returned", "Source citations returned per query",
+    buckets=[0, 5, 10, 20, 50],
+)
+GRAPHRAG_CONFIDENCE = Histogram(
+    "graphrag_confidence_score", "Query confidence score",
+    buckets=[0.1, 0.2, 0.3, 0.5, 0.7, 0.9, 1.0],
+)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -249,6 +268,29 @@ async def query(
             )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Query engine unavailable") from exc
+
+    # Record GraphRAG quality metrics to Prometheus
+    GRAPHRAG_PATHS.observe(len(result.paths))
+    GRAPHRAG_SEEDS.observe(len(result.seed_entities))
+    GRAPHRAG_CITATIONS.observe(len(result.sources))
+    GRAPHRAG_CONFIDENCE.observe(result.confidence)
+
+    # Log to MLflow graphrag-queries experiment (best-effort)
+    try:
+        import mlflow
+        mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+        mlflow.set_tracking_uri(mlflow_uri)
+        exp = mlflow.set_experiment("graphrag-queries")
+        with mlflow.start_run(experiment_id=exp.experiment_id, run_name=f"query-{hashlib.md5(body.query.encode()).hexdigest()[:8]}"):
+            mlflow.log_param("query_hash", hashlib.md5(body.query.encode()).hexdigest()[:8])
+            mlflow.log_param("top_k", body.top_k)
+            mlflow.log_metric("paths_found", len(result.paths))
+            mlflow.log_metric("seeds_found", len(result.seed_entities))
+            mlflow.log_metric("citations_returned", len(result.sources))
+            mlflow.log_metric("confidence", result.confidence)
+            mlflow.log_metric("latency_ms", result.latency_ms)
+    except Exception:
+        pass  # never fail the response for MLflow
 
     # Log to query_logs (best-effort — don't fail the response if logging fails)
     try:

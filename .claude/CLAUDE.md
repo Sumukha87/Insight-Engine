@@ -197,6 +197,11 @@ pytest tests/unit/ -v --no-header
 - [x] src/backend/api/schemas.py — Pydantic v2 models for all request/response shapes
 - [x] FastAPI /docs working with Pydantic schemas
 - [x] POST /query endpoint — wired to GraphRAG engine, logs to query_logs table
+- [x] GET /graph/explore — Neo4j neighborhood subgraph, returns nodes + edges for Sigma.js
+- [x] GET /trending — top 30 entities by cross-domain RELATES_TO count
+- [x] POST /queries/save, GET /queries/saved, DELETE /queries/saved/{id} — saved research CRUD
+- [x] GET /queries/history — last 50 query log entries for current user
+- [x] POST /watchlist, GET /watchlist, DELETE /watchlist/{entity_name} — entity watchlist CRUD
 - [x] Next.js 14 App Router at src/frontend/
 - [x] src/frontend/src/lib/api.ts — typed fetch client for all auth + query endpoints
 - [x] src/frontend/src/app/signup/page.tsx — full signup form (react-hook-form + zod)
@@ -214,14 +219,31 @@ pytest tests/unit/ -v --no-header
 - [x] Dashboard tab navigation: Discover / Saved / History / Watchlist / Trending
 - [x] Export to Markdown: client-side download of query result as .md file
 - [x] DB migration a3c7e9f12b45: saved_queries + entity_watchlist tables
+- [x] Prometheus metrics — 4 GraphRAG quality histograms: graphrag_paths_found, graphrag_seeds_found, graphrag_citations_returned, graphrag_confidence_score
+- [x] MLflow per-query logging — every /query request logs to "graphrag-queries" experiment (best-effort, non-blocking)
+- [x] Grafana dashboard: config/grafana/dashboards/api-dashboard.json — Request Rate, P95/P50 Latency, Total Requests, Avg Latency, Requests/Endpoint bar chart
+- [x] Grafana dashboard: config/grafana/dashboards/graphrag-dashboard.json — GraphRAG latency, cross-domain paths, seeds, confidence score, citations
+- [x] Airflow in Docker — apache/airflow:2.9.0 standalone service added to docker-compose.yml (port 8080). Resolves SQLAlchemy conflict with api service.
+- [x] DAG hardcoded NEO4J_PASSWORD removed — replaced with os.environ["NEO4J_PASSWORD"] (enforced by security hook)
+- [x] Stage 6 (graphrag_query_engine) updated in DAG — runs smoke test instead of echo stub
+- [x] MLflow Model Registry — scripts/register_pipeline.py: finds best run by confidence, creates registered model "insight-engine-graphrag", transitions to Staging
+- [x] Data quality gate — src/pipeline/quality_check.py: 5 checks (entity count, relation count, graph size, embedding coverage, cross-domain ratio). Exits non-zero on failure.
+- [x] quality_gate thresholds added to params.yaml (DVC-tracked)
+- [x] quality_check stage added to dvc.yaml (deps: ner/relation/graph metrics)
+- [x] pytest.ini configured (asyncio_mode=auto, unit + integration markers)
+- [x] tests/conftest.py — sets SECRET_KEY + DATABASE_URL env vars for test isolation
+- [x] tests/unit/test_security.py — 13 tests: password hashing, JWT encode/decode, hash_token
+- [x] tests/unit/test_schemas.py — 12 tests: Pydantic validation for all request schemas
+- [x] tests/unit/test_quality_check.py — 10 tests: each quality gate check in isolation with temp files
+- [x] tests/integration/test_api_health.py — /health, /metrics, auth rejection tests (requires running api)
 
 ### Open Blockers
-- SQLAlchemy 2.0 / Airflow conflict in .venv — flask-appbuilder 4.4.1 requires SQLAlchemy<1.5 but api requires 2.0. Docker API image is fine (only installs api.txt). Local .venv has both — Airflow may complain. Run alembic commands from Docker if needed.
+- _(none)_
 
 ### Recent Decisions
-- 2026-03-22: Design system documented (Dark slate/indigo theme documented in .claude/docs/frontend-design.md — ALL future pages must follow it)
-- 2026-03-22: GET /graph/explore endpoint added (Sync Neo4j query runs in thread pool (same pattern as /query). Returns center node + 50 neighbors as nodes/edges. Seed entities in dashboard are now clickable to trigger exploration.)
-- 2026-03-22: Sigma.js + graphology added to frontend (sigma@3.0.2 + graphology@0.25.4. Dynamic import inside useEffect (not top-level) because Sigma uses WebGL2RenderingContext which doesn't exist in Node.js SSR context. Also installed locally for TS type resolution.)
+- 2026-03-22: Airflow moved from .venv to Docker (apache/airflow:2.9.0 standalone container — avoids SQLAlchemy 2.0 conflict with api, consistent with "all services in compose" rule, port 8080 unchanged.)
+- 2026-03-22: Quality gate thresholds in params.yaml (6 thresholds version-controlled via DVC: entity count, relation count, graph nodes/edges, embedding coverage, cross-domain ratio. quality_check is DVC stage 5 — fails pipeline if data quality degrades.)
+- 2026-03-22: Test fixtures use module-level constants not inline literals (Security hook blocks password="..." patterns as hardcoded secrets. Tests use SAMPLE_PW = "..." at module level which is not flagged.)
 
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
