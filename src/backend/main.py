@@ -311,10 +311,13 @@ async def query(
         exp = mlflow.set_experiment("graphrag-queries")
         with mlflow.start_run(
             experiment_id=exp.experiment_id,
-            run_name=f"query-{hashlib.md5(body.query.encode()).hexdigest()[:8]}",
+            run_name=f"query-{hashlib.md5(body.query.encode(), usedforsecurity=False).hexdigest()[:8]}",  # nosec B324
         ):
             mlflow.log_param(
-                "query_hash", hashlib.md5(body.query.encode()).hexdigest()[:8]
+                "query_hash",
+                hashlib.md5(body.query.encode(), usedforsecurity=False).hexdigest()[
+                    :8
+                ],  # nosec B324
             )
             mlflow.log_param("top_k", body.top_k)
             mlflow.log_metric("paths_found", len(result.paths))

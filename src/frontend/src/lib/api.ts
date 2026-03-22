@@ -43,12 +43,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const data = await res.json();
   if (!res.ok) {
-    const detail = (data as any).detail;
+    const detail = (data as { detail?: unknown }).detail;
     const message =
       typeof detail === "string"
         ? detail
         : Array.isArray(detail)
-        ? detail.map((d: any) => d.msg ?? JSON.stringify(d)).join(", ")
+        ? detail.map((d: { msg?: string }) => d.msg ?? JSON.stringify(d)).join(", ")
         : "Request failed";
     throw new Error(message);
   }
