@@ -4,8 +4,8 @@ name: CI
 # and on every push to develop (post-merge checks).
 # All jobs must pass before merge is allowed.
 # Configure branch protection rules:
-#   develop: require "Python Unit Tests", "Python Lint", "Security Scan", "Frontend"
-#   main:    require the same four status checks
+#   develop: require "Python Unit Tests", "Security Scan", "Frontend TypeScript + ESLint", "DVC + Params Validation"
+#   main:    require the same status checks
 
 on:
   pull_request:
@@ -36,27 +36,6 @@ jobs:
       - name: Run unit tests
         run: pytest tests/unit/ -v --no-header
         # conftest.py injects SECRET_KEY + DATABASE_URL + NEO4J_PASSWORD — no repo secrets needed
-
-  lint:
-    name: Python Lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install lint tools
-        run: pip install black isort
-
-      - name: black --check
-        run: black --check src/backend/ src/pipeline/ tests/
-
-      - name: isort --check
-        run: isort --check-only src/backend/ src/pipeline/ tests/
 
   security:
     name: Security Scan

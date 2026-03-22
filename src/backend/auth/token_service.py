@@ -5,8 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.auth.security import (ACCESS_TOKEN_EXPIRE_MINUTES,
-                                       create_access_token)
+from src.backend.auth.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
 from src.backend.db.crud import sessions as sessions_crud
 from src.backend.db.crud import tokens as tokens_crud
 from src.backend.db.models import AuthSession, RefreshToken, User

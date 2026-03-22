@@ -7,6 +7,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import src.backend.db.models  # noqa: F401
+
 # Import all models so autogenerate can detect them
 from src.backend.db.base import Base  # noqa: F401
 

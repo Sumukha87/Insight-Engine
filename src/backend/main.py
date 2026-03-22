@@ -12,21 +12,36 @@ from prometheus_client import Counter, Histogram, make_asgi_app
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.api.schemas import (ExploreEdge, ExploreNode,
-                                     GraphExploreResponse, GraphNode,
-                                     GraphPath, HealthResponse, HistoryItem,
-                                     LoginRequest, QueryRequest, QueryResponse,
-                                     RefreshRequest, RegisterRequest,
-                                     SavedQueryItem, SaveQueryRequest,
-                                     SessionResponse, SourceCitation,
-                                     TokenResponse, TrendingEntity,
-                                     UserResponse, WatchlistAddRequest,
-                                     WatchlistItem)
+from src.backend.api.schemas import (
+    ExploreEdge,
+    ExploreNode,
+    GraphExploreResponse,
+    GraphNode,
+    GraphPath,
+    HealthResponse,
+    HistoryItem,
+    LoginRequest,
+    QueryRequest,
+    QueryResponse,
+    RefreshRequest,
+    RegisterRequest,
+    SavedQueryItem,
+    SaveQueryRequest,
+    SessionResponse,
+    SourceCitation,
+    TokenResponse,
+    TrendingEntity,
+    UserResponse,
+    WatchlistAddRequest,
+    WatchlistItem,
+)
 from src.backend.auth.deps import CurrentUser, get_current_token
-from src.backend.auth.security import (hash_password, hash_token,
-                                       verify_password)
-from src.backend.auth.token_service import (issue_tokens, refresh_tokens,
-                                            revoke_session_by_token_hash)
+from src.backend.auth.security import hash_password, hash_token, verify_password
+from src.backend.auth.token_service import (
+    issue_tokens,
+    refresh_tokens,
+    revoke_session_by_token_hash,
+)
 from src.backend.db.crud import saved_queries as saved_queries_crud
 from src.backend.db.crud import sessions as sessions_crud
 from src.backend.db.crud import users as users_crud

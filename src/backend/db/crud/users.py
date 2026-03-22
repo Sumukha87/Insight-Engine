@@ -4,8 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.db.models import (MemberRole, Membership, Organization,
-                                   UsageQuota, User)
+from src.backend.db.models import MemberRole, Membership, Organization, UsageQuota, User
 
 
 async def get_by_email(db: AsyncSession, email: str) -> User | None:

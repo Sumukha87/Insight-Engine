@@ -7,9 +7,13 @@ Tests Pydantic v2 validation rules without any external services.
 import pytest
 from pydantic import ValidationError
 
-from src.backend.api.schemas import (LoginRequest, QueryRequest,
-                                     RegisterRequest, SaveQueryRequest,
-                                     WatchlistAddRequest)
+from src.backend.api.schemas import (
+    LoginRequest,
+    QueryRequest,
+    RegisterRequest,
+    SaveQueryRequest,
+    WatchlistAddRequest,
+)
 
 VALID_PW = "strongpassword"
 SHORT_PW = "short"

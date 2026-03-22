@@ -8,9 +8,13 @@ All tests run without any external services.
 import pytest
 from jose import JWTError
 
-from src.backend.auth.security import (create_access_token, decode_token,
-                                       hash_password, hash_token,
-                                       verify_password)
+from src.backend.auth.security import (
+    create_access_token,
+    decode_token,
+    hash_password,
+    hash_token,
+    verify_password,
+)
 
 SAMPLE_PW = "correcthorsebatterystaple"
 OTHER_PW = "wrongpassword"
