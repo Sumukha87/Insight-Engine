@@ -3,15 +3,19 @@
 ## Entity Extraction Standards
 
 - Always use `en_core_sci_lg` for biomedical text, `en_core_web_trf` for engineering/patent text
-- Entity type mapping — use ONLY these types (map everything to one of them):
-  - `Technology` — methods, algorithms, techniques, processes
-  - `Material` — substances, compounds, alloys, polymers
+- Entity type mapping — use ONLY these 12 types (map everything to one of them):
+  - `Technology` — general methods, platforms, systems, techniques
+  - `Material` — substances, alloys, polymers, nanomaterials, composites
   - `Disease` — conditions, disorders, syndromes
-  - `Device` — instruments, implants, machines, sensors
-  - `Compound` — chemicals, drugs, molecules
-  - `Process` — manufacturing steps, biological processes
-  - `Organism` — bacteria, viruses, cell types
-  - `Gene` — genes, proteins, biomarkers
+  - `Device` — instruments, implants, machines, sensors, chips
+  - `Compound` — chemicals, drugs, molecules, amino acids
+  - `Process` — manufacturing steps, biological processes, fabrication
+  - `Organism` — bacteria, viruses, cell types, taxa
+  - `Gene` — genes, proteins, biomarkers, DNA/RNA
+  - `Algorithm` — ML models, neural networks, optimizers, classifiers
+  - `Phenomenon` — physical/chemical/biological effects (superconductivity, entanglement)
+  - `Software` — frameworks, toolkits, libraries, simulators (TensorFlow, CUDA)
+  - `Infrastructure` — grids, reactors, propulsion systems, large-scale facilities
 
 ## Relation Types — Exact Strings
 

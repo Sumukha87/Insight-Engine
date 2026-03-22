@@ -30,10 +30,16 @@ mlruns/
 mlflow.db
 
 # Node
-frontend/node_modules/
-frontend/.next/
+src/frontend/node_modules/
+src/frontend/.next/
+src/frontend/out/
+
+# DVC
+.dvc/tmp/
+.dvc/cache/
 
 # Misc
 .DS_Store
 *.log
 .coverage
+.airflow/airflow.db

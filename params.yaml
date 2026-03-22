@@ -1,0 +1,12 @@
+ner:
+  model_name: en_core_sci_lg
+  batch_size: 32
+  min_entity_length: 3
+
+relations:
+  confidence_threshold: 0.7
+  max_relations_per_doc: 10
+
+graph:
+  entity_batch_size: 500
+  relation_batch_size: 1000
