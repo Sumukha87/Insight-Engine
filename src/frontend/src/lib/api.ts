@@ -95,12 +95,37 @@ export const api = {
       body: JSON.stringify(body),
     });
   },
+
+  explore(access_token: string, entity: string): Promise<GraphExploreResponse> {
+    return request(`/graph/explore?entity=${encodeURIComponent(entity)}`, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+  },
 };
 
 export interface GraphNode {
   name: string;
   type: string;
   domain: string;
+}
+
+export interface ExploreNode {
+  name: string;
+  type: string;
+  domain: string;
+  is_center: boolean;
+}
+
+export interface ExploreEdge {
+  source: string;
+  target: string;
+  relation: string;
+}
+
+export interface GraphExploreResponse {
+  center: string;
+  nodes: ExploreNode[];
+  edges: ExploreEdge[];
 }
 
 export interface GraphPath {

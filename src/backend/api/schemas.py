@@ -96,6 +96,27 @@ class QueryResponse(BaseModel):
     latency_ms: int
 
 
+# ── Graph explore ─────────────────────────────────────────────────────────────
+
+class ExploreNode(BaseModel):
+    name: str
+    type: str
+    domain: str
+    is_center: bool = False
+
+
+class ExploreEdge(BaseModel):
+    source: str
+    target: str
+    relation: str
+
+
+class GraphExploreResponse(BaseModel):
+    center: str
+    nodes: list[ExploreNode]
+    edges: list[ExploreEdge]
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):

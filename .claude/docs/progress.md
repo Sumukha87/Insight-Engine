@@ -162,7 +162,7 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 - [x] src/frontend/src/app/dashboard/page.tsx — query UI with answer, paths, seed entities, citations
 - [x] Frontend ↔ backend integration verified: signup → login → dashboard query all working
 - [x] Source citations panel — CitationCard component, source papers section below answer
-- [ ] Graph explorer: Sigma.js rendering entity neighborhood
+- [x] Graph explorer: GET /graph/explore + Sigma.js GraphExplorer component — seed entities are clickable, renders neighborhood subgraph (nodes + edges) with domain colour legend
 - [ ] Cloudflare Tunnel configured and public URL live
 - [ ] Full demo flow rehearsed and timed (<5 min walkthrough)
 
@@ -217,6 +217,8 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 | 2026-03-22 | Source citations implemented across full stack | traverse_graph Cypher now returns source_paper_ids from RELATES_TO edges; fetch_citations() does second Neo4j query to resolve Paper title/year/doi; SourceCitation flows through all layers to dashboard CitationCard. Needs `docker compose build api`. |
 | 2026-03-22 | Frontend middleware added for auth protection | src/middleware.ts reads access_token cookie, redirects unauthenticated requests to /login. Tokens saved in both localStorage and cookie via saveTokens(). |
 | 2026-03-22 | Design system documented | Dark slate/indigo theme documented in .claude/docs/frontend-design.md — ALL future pages must follow it |
+| 2026-03-22 | GET /graph/explore endpoint added | Sync Neo4j query runs in thread pool (same pattern as /query). Returns center node + 50 neighbors as nodes/edges. Seed entities in dashboard are now clickable to trigger exploration. |
+| 2026-03-22 | Sigma.js + graphology added to frontend | sigma@3.0.2 + graphology@0.25.4. Dynamic import inside useEffect (not top-level) because Sigma uses WebGL2RenderingContext which doesn't exist in Node.js SSR context. Also installed locally for TS type resolution. |
 
 ## Blockers / Issues
 

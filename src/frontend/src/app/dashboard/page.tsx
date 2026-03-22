@@ -1,7 +1,24 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { api, clearTokens, GraphPath, QueryResponse, SourceCitation } from "@/lib/api";
+import { api, clearTokens, GraphExploreResponse, GraphPath, QueryResponse, SourceCitation } from "@/lib/api";
+
+// Hex colours for Sigma.js (WebGL) — mirrors the Tailwind badge palette
+const DOMAIN_HEX: Record<string, string> = {
+  Aerospace:      "#185FA5",
+  Medical:        "#0F6E56",
+  "Medical Devices": "#0F6E56",
+  Materials:      "#854F0B",
+  Energy:         "#CA8A04",
+  Biotechnology:  "#16A34A",
+  Robotics:       "#0891B2",
+  Quantum:        "#7C3AED",
+  Nanotechnology: "#DB2777",
+  Environment:    "#0D9488",
+  Semiconductors: "#EA580C",
+  Pharma:         "#DC2626",
+  Neuroscience:   "#9333EA",
+};
 
 const DOMAIN_COLORS: Record<string, string> = {
   Aerospace:      "bg-blue-500/20 text-blue-300",
@@ -78,12 +95,127 @@ function PathCard({ path, index }: { path: GraphPath; index: number }) {
   );
 }
 
+function GraphExplorer({ data, onClose }: { data: GraphExploreResponse; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !data.nodes.length) return;
+
+    let destroyed = false;
+    let sigmaInstance: { kill: () => void } | null = null;
+
+    (async () => {
+      const [{ default: Sigma }, { default: Graph }] = await Promise.all([
+        import("sigma"),
+        import("graphology"),
+      ]);
+
+      if (destroyed || !containerRef.current) return;
+
+      const graph = new Graph({ multi: false });
+      const neighbors = data.nodes.filter((n) => !n.is_center);
+
+      data.nodes.forEach((node) => {
+        if (node.is_center) {
+          graph.addNode(node.name, {
+            x: 0, y: 0, size: 14,
+            label: node.name,
+            color: DOMAIN_HEX[node.domain] ?? "#6366F1",
+          });
+        } else {
+          const idx = neighbors.findIndex((n) => n.name === node.name);
+          const angle = neighbors.length > 1 ? (2 * Math.PI * idx) / neighbors.length : 0;
+          graph.addNode(node.name, {
+            x: 3 * Math.cos(angle),
+            y: 3 * Math.sin(angle),
+            size: 6,
+            label: node.name,
+            color: DOMAIN_HEX[node.domain] ?? "#6B7280",
+          });
+        }
+      });
+
+      data.edges.forEach((edge) => {
+        if (graph.hasNode(edge.source) && graph.hasNode(edge.target)) {
+          try {
+            graph.addEdge(edge.source, edge.target, {
+              label: edge.relation,
+              size: 1,
+              color: "#374151",
+            });
+          } catch {
+            // duplicate edge — skip
+          }
+        }
+      });
+
+      sigmaInstance = new Sigma(graph, containerRef.current!, {
+        renderEdgeLabels: false,
+        defaultNodeColor: "#6B7280",
+        labelColor: { color: "#94A3B8" },
+        labelSize: 11,
+        labelWeight: "normal",
+        defaultEdgeColor: "#374151",
+      });
+    })();
+
+    return () => {
+      destroyed = true;
+      sigmaInstance?.kill();
+    };
+  }, [data]);
+
+  return (
+    <div className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <span className="text-xs font-semibold text-white">
+            Entity neighborhood — <span className="text-indigo-400">{data.center}</span>
+          </span>
+          <span className="text-xs text-slate-500">
+            {data.nodes.length} nodes · {data.edges.length} edges
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+          aria-label="Close graph explorer"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div
+        ref={containerRef}
+        style={{ width: "100%", height: "400px", background: "#0F172A" }}
+      />
+      <div className="px-5 py-3 border-t border-white/10 flex flex-wrap gap-3">
+        {Array.from(new Set(data.nodes.map((n) => n.domain))).map((domain) => (
+          <div key={domain} className="flex items-center gap-1.5">
+            <div
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ background: DOMAIN_HEX[domain] ?? "#6B7280" }}
+            />
+            <span className="text-xs text-slate-400">{domain}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<{ full_name: string; email: string } | null>(null);
   const [queryText, setQueryText] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exploreData, setExploreData] = useState<GraphExploreResponse | null>(null);
+  const [exploreLoading, setExploreLoading] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,6 +251,24 @@ export default function DashboardPage() {
     if (token) api.logout(token).catch(() => {});
     clearTokens();
     window.location.href = "/login";
+  }
+
+  async function handleExplore(entity: string) {
+    if (exploreLoading) return;
+    // toggle off if clicking same entity again
+    if (exploreData?.center === entity) { setExploreData(null); return; }
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    setExploreLoading(entity);
+    setExploreData(null);
+    try {
+      const data = await api.explore(token, entity);
+      setExploreData(data);
+    } catch {
+      // silently fail — entity may not exist in graph
+    } finally {
+      setExploreLoading(null);
+    }
   }
 
   return (
@@ -247,18 +397,45 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
             </div>
 
-            {/* Seed entities */}
+            {/* Seed entities — clickable to explore graph neighborhood */}
             {result.seed_entities.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Seed entities</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Seed entities</h3>
+                  <span className="text-xs text-slate-600">click to explore neighborhood</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {result.seed_entities.map((s) => (
-                    <span key={s} className="text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-400">
+                    <button
+                      key={s}
+                      onClick={() => handleExplore(s)}
+                      disabled={!!exploreLoading}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                        exploreData?.center === s
+                          ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300"
+                      }`}
+                    >
+                      {exploreLoading === s ? (
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      )}
                       {s}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Graph explorer panel */}
+            {exploreData && (
+              <GraphExplorer data={exploreData} onClose={() => setExploreData(null)} />
             )}
 
             {/* Paths */}

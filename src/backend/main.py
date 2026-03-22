@@ -12,6 +12,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.api.schemas import (
+    ExploreEdge,
+    ExploreNode,
+    GraphExploreResponse,
     GraphNode,
     GraphPath,
     HealthResponse,
@@ -281,4 +284,95 @@ async def query(
         ],
         confidence=result.confidence,
         latency_ms=result.latency_ms,
+    )
+
+
+# ── Graph explore ──────────────────────────────────────────────────────────────
+
+def _explore_entity(entity: str) -> dict:
+    """Sync Neo4j query — runs in thread pool."""
+    from neo4j import GraphDatabase as Neo4jDriver
+
+    neo4j_uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_password = os.environ["NEO4J_PASSWORD"]
+
+    driver = Neo4jDriver.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+    try:
+        with driver.session() as session:
+            records = session.run(
+                """
+                MATCH (center:Entity {name: $entity})
+                WITH center LIMIT 1
+                MATCH (center)-[r:RELATES_TO]-(neighbor:Entity)
+                RETURN
+                  center.name  AS center_name,
+                  center.type  AS center_type,
+                  center.domain AS center_domain,
+                  neighbor.name  AS neighbor_name,
+                  neighbor.type  AS neighbor_type,
+                  neighbor.domain AS neighbor_domain,
+                  r.relation AS relation,
+                  CASE WHEN startNode(r) = center THEN center.name ELSE neighbor.name END AS source,
+                  CASE WHEN startNode(r) = center THEN neighbor.name ELSE center.name END AS target
+                LIMIT 50
+                """,
+                entity=entity,
+            ).data()
+    finally:
+        driver.close()
+
+    if not records:
+        return {"center": entity, "nodes": [], "edges": []}
+
+    nodes_map: dict[str, dict] = {}
+    edges: list[dict] = []
+
+    first = records[0]
+    nodes_map[first["center_name"]] = {
+        "name": first["center_name"],
+        "type": first["center_type"],
+        "domain": first["center_domain"],
+        "is_center": True,
+    }
+
+    for rec in records:
+        if rec["neighbor_name"] and rec["neighbor_name"] not in nodes_map:
+            nodes_map[rec["neighbor_name"]] = {
+                "name": rec["neighbor_name"],
+                "type": rec["neighbor_type"],
+                "domain": rec["neighbor_domain"],
+                "is_center": False,
+            }
+        if rec["source"] and rec["target"]:
+            edges.append({
+                "source": rec["source"],
+                "target": rec["target"],
+                "relation": rec["relation"] or "RELATES_TO",
+            })
+
+    return {"center": entity, "nodes": list(nodes_map.values()), "edges": edges}
+
+
+@app.get("/graph/explore", response_model=GraphExploreResponse)
+async def graph_explore(
+    entity: str,
+    current_user: CurrentUser,
+) -> GraphExploreResponse:
+    REQUEST_COUNT.labels(endpoint="/graph/explore").inc()
+
+    if not entity.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="entity cannot be empty")
+
+    loop = asyncio.get_event_loop()
+    try:
+        with REQUEST_LATENCY.labels(endpoint="/graph/explore").time():
+            result = await loop.run_in_executor(None, partial(_explore_entity, entity))
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Graph exploration unavailable") from exc
+
+    return GraphExploreResponse(
+        center=result["center"],
+        nodes=[ExploreNode(**n) for n in result["nodes"]],
+        edges=[ExploreEdge(**e) for e in result["edges"]],
     )
