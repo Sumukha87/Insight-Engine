@@ -1,7 +1,30 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { api, clearTokens, GraphPath, QueryResponse, SourceCitation } from "@/lib/api";
+import { api, clearTokens, GraphExploreResponse, GraphPath, QueryResponse, SourceCitation } from "@/lib/api";
+import SavedTab from "./SavedTab";
+import HistoryTab from "./HistoryTab";
+import WatchlistTab from "./WatchlistTab";
+import TrendingTab from "./TrendingTab";
+
+type Tab = "discover" | "saved" | "history" | "watchlist" | "trending";
+
+// Hex colours for Sigma.js (WebGL) — mirrors the Tailwind badge palette
+const DOMAIN_HEX: Record<string, string> = {
+  Aerospace:      "#185FA5",
+  Medical:        "#0F6E56",
+  "Medical Devices": "#0F6E56",
+  Materials:      "#854F0B",
+  Energy:         "#CA8A04",
+  Biotechnology:  "#16A34A",
+  Robotics:       "#0891B2",
+  Quantum:        "#7C3AED",
+  Nanotechnology: "#DB2777",
+  Environment:    "#0D9488",
+  Semiconductors: "#EA580C",
+  Pharma:         "#DC2626",
+  Neuroscience:   "#9333EA",
+};
 
 const DOMAIN_COLORS: Record<string, string> = {
   Aerospace:      "bg-blue-500/20 text-blue-300",
@@ -78,12 +101,134 @@ function PathCard({ path, index }: { path: GraphPath; index: number }) {
   );
 }
 
+function GraphExplorer({ data, onClose }: { data: GraphExploreResponse; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || !data.nodes.length) return;
+
+    let destroyed = false;
+    let sigmaInstance: { kill: () => void } | null = null;
+
+    (async () => {
+      const [{ default: Sigma }, { default: Graph }] = await Promise.all([
+        import("sigma"),
+        import("graphology"),
+      ]);
+
+      if (destroyed || !containerRef.current) return;
+
+      const graph = new Graph({ multi: false });
+      const neighbors = data.nodes.filter((n) => !n.is_center);
+
+      data.nodes.forEach((node) => {
+        if (node.is_center) {
+          graph.addNode(node.name, {
+            x: 0, y: 0, size: 14,
+            label: node.name,
+            color: DOMAIN_HEX[node.domain] ?? "#6366F1",
+          });
+        } else {
+          const idx = neighbors.findIndex((n) => n.name === node.name);
+          const angle = neighbors.length > 1 ? (2 * Math.PI * idx) / neighbors.length : 0;
+          graph.addNode(node.name, {
+            x: 3 * Math.cos(angle),
+            y: 3 * Math.sin(angle),
+            size: 6,
+            label: node.name,
+            color: DOMAIN_HEX[node.domain] ?? "#6B7280",
+          });
+        }
+      });
+
+      data.edges.forEach((edge) => {
+        if (graph.hasNode(edge.source) && graph.hasNode(edge.target)) {
+          try {
+            graph.addEdge(edge.source, edge.target, {
+              label: edge.relation,
+              size: 1,
+              color: "#374151",
+            });
+          } catch {
+            // duplicate edge — skip
+          }
+        }
+      });
+
+      sigmaInstance = new Sigma(graph, containerRef.current!, {
+        renderEdgeLabels: false,
+        defaultNodeColor: "#6B7280",
+        labelColor: { color: "#94A3B8" },
+        labelSize: 11,
+        labelWeight: "normal",
+        defaultEdgeColor: "#374151",
+      });
+    })();
+
+    return () => {
+      destroyed = true;
+      sigmaInstance?.kill();
+    };
+  }, [data]);
+
+  return (
+    <div className="bg-slate-900/80 border border-white/10 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <span className="text-xs font-semibold text-white">
+            Entity neighborhood — <span className="text-indigo-400">{data.center}</span>
+          </span>
+          <span className="text-xs text-slate-500">
+            {data.nodes.length} nodes · {data.edges.length} edges
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+          aria-label="Close graph explorer"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div
+        ref={containerRef}
+        style={{ width: "100%", height: "400px", background: "#0F172A" }}
+      />
+      <div className="px-5 py-3 border-t border-white/10 flex flex-wrap gap-3">
+        {Array.from(new Set(data.nodes.map((n) => n.domain))).map((domain) => (
+          <div key={domain} className="flex items-center gap-1.5">
+            <div
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ background: DOMAIN_HEX[domain] ?? "#6B7280" }}
+            />
+            <span className="text-xs text-slate-400">{domain}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
+  const [tab, setTab] = useState<Tab>("discover");
   const [user, setUser] = useState<{ full_name: string; email: string } | null>(null);
   const [queryText, setQueryText] = useState("");
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exploreData, setExploreData] = useState<GraphExploreResponse | null>(null);
+  const [exploreLoading, setExploreLoading] = useState<string | null>(null);
+  // Save modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveNotes, setSaveNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -121,6 +266,81 @@ export default function DashboardPage() {
     window.location.href = "/login";
   }
 
+  async function handleSave() {
+    if (!result || !saveName.trim()) return;
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    setSaving(true);
+    try {
+      await api.saveQuery(token, {
+        name: saveName.trim(),
+        query_text: queryText,
+        result: result as unknown as QueryResponse,
+        notes: saveNotes.trim() || undefined,
+      });
+      setSavedOk(true);
+      setTimeout(() => { setShowSaveModal(false); setSavedOk(false); setSaveName(""); setSaveNotes(""); }, 1200);
+    } catch {
+      // keep modal open on error
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleExport() {
+    if (!result) return;
+    const lines = [
+      `# ${queryText}`,
+      "",
+      `## Answer`,
+      result.answer,
+      "",
+      `## Cross-domain Paths (${result.paths.length})`,
+      ...result.paths.slice(0, 10).map((p, i) =>
+        `${i + 1}. ${p.nodes.map((n) => n.name).join(" → ")} (${p.hops} hops)`
+      ),
+      "",
+      `## Source Papers (${result.sources.length})`,
+      ...result.sources.slice(0, 15).map((s, i) =>
+        `${i + 1}. ${s.title} (${s.year}) — ${s.domain ?? ""}${s.doi ? ` | doi:${s.doi}` : ""}`
+      ),
+      "",
+      `---`,
+      `Generated by Insight Engine | Confidence: ${Math.round(result.confidence * 100)}% | Latency: ${(result.latency_ms / 1000).toFixed(1)}s`,
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `insight-${queryText.slice(0, 30).replace(/\s+/g, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleAddToWatchlist(entity: { entity_name: string; entity_type: string; entity_domain: string }) {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    api.addWatchlist(token, entity).catch(() => {});
+  }
+
+  async function handleExplore(entity: string) {
+    if (exploreLoading) return;
+    // toggle off if clicking same entity again
+    if (exploreData?.center === entity) { setExploreData(null); return; }
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+    setExploreLoading(entity);
+    setExploreData(null);
+    try {
+      const data = await api.explore(token, entity);
+      setExploreData(data);
+    } catch {
+      // silently fail — entity may not exist in graph
+    } finally {
+      setExploreLoading(null);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-950">
       <div
@@ -155,16 +375,44 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="relative max-w-4xl mx-auto px-6 py-10">
+      <main className="relative max-w-4xl mx-auto px-6 py-8">
         {/* Greeting */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-white tracking-tight">
             {user ? `Hi, ${user.full_name.split(" ")[0]}` : "Dashboard"}
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Ask a cross-domain question — the knowledge graph has 1.5M entities across 12 domains.
+            Cross-domain innovation discovery — 1.5M entities across 12 domains.
           </p>
         </div>
+
+        {/* Tab navigation */}
+        <div className="flex gap-1 mb-6 bg-slate-900/60 border border-white/10 rounded-xl p-1">
+          {(
+            [
+              { id: "discover", label: "Discover" },
+              { id: "saved",    label: "Saved" },
+              { id: "history",  label: "History" },
+              { id: "watchlist",label: "Watchlist" },
+              { id: "trending", label: "Trending" },
+            ] as { id: Tab; label: string }[]
+          ).map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                tab === id
+                  ? "bg-indigo-600 text-white shadow"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Discover tab ─────────────────────────────────────────────── */}
+        {tab === "discover" && <>
 
         {/* Query box */}
         <form onSubmit={handleQuery} className="mb-8">
@@ -225,13 +473,35 @@ export default function DashboardPage() {
         {/* Results */}
         {result && (
           <div className="space-y-6">
-            {/* Meta */}
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <span>{result.paths.length} cross-domain path{result.paths.length !== 1 ? "s" : ""} found</span>
-              <span>·</span>
-              <span>Confidence {Math.round(result.confidence * 100)}%</span>
-              <span>·</span>
-              <span>{(result.latency_ms / 1000).toFixed(1)}s</span>
+            {/* Meta + actions */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span>{result.paths.length} cross-domain path{result.paths.length !== 1 ? "s" : ""} found</span>
+                <span>·</span>
+                <span>Confidence {Math.round(result.confidence * 100)}%</span>
+                <span>·</span>
+                <span>{(result.latency_ms / 1000).toFixed(1)}s</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExport}
+                  className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-xs font-medium transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export
+                </button>
+                <button
+                  onClick={() => { setSaveName(queryText.slice(0, 60)); setShowSaveModal(true); }}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Save
+                </button>
+              </div>
             </div>
 
             {/* Answer */}
@@ -247,18 +517,55 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
             </div>
 
-            {/* Seed entities */}
+            {/* Seed entities — clickable to explore graph neighborhood */}
             {result.seed_entities.length > 0 && (
               <div>
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Seed entities</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Seed entities</h3>
+                  <span className="text-xs text-slate-600">click to explore · + to watch</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {result.seed_entities.map((s) => (
-                    <span key={s} className="text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-400">
+                    <div key={s} className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleExplore(s)}
+                      disabled={!!exploreLoading}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                        exploreData?.center === s
+                          ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300"
+                      }`}
+                    >
+                      {exploreLoading === s ? (
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                      )}
                       {s}
-                    </span>
+                    </button>
+                    <button
+                      onClick={() => handleAddToWatchlist({ entity_name: s, entity_type: "Unknown", entity_domain: "Unknown" })}
+                      className="p-1 rounded text-slate-600 hover:text-emerald-400 transition-colors"
+                      title="Add to watchlist"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Graph explorer panel */}
+            {exploreData && (
+              <GraphExplorer data={exploreData} onClose={() => setExploreData(null)} />
             )}
 
             {/* Paths */}
@@ -317,7 +624,101 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+        </> /* end discover tab */}
+
+        {/* ── Saved tab ──────────────────────────────────────────────────── */}
+        {tab === "saved" && (
+          <SavedTab
+            onReplay={(queryText, savedResult) => {
+              setQueryText(queryText);
+              setResult(savedResult);
+              setTab("discover");
+            }}
+          />
+        )}
+
+        {/* ── History tab ────────────────────────────────────────────────── */}
+        {tab === "history" && (
+          <HistoryTab
+            onReplay={(text) => {
+              setQueryText(text);
+              setTab("discover");
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+          />
+        )}
+
+        {/* ── Watchlist tab ──────────────────────────────────────────────── */}
+        {tab === "watchlist" && (
+          <WatchlistTab
+            onExplore={(entityName) => {
+              setTab("discover");
+              setTimeout(() => handleExplore(entityName), 50);
+            }}
+          />
+        )}
+
+        {/* ── Trending tab ───────────────────────────────────────────────── */}
+        {tab === "trending" && (
+          <TrendingTab
+            onAddToWatchlist={handleAddToWatchlist}
+            onExplore={(entityName) => {
+              setTab("discover");
+              setTimeout(() => handleExplore(entityName), 50);
+            }}
+          />
+        )}
       </main>
+
+      {/* ── Save modal ─────────────────────────────────────────────────────── */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-base font-semibold text-white mb-4">Save query</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
+                  Name
+                </label>
+                <input
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="e.g. Aerospace cardiac materials"
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
+                  Notes <span className="text-slate-600 normal-case font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={saveNotes}
+                  onChange={(e) => setSaveNotes(e.target.value)}
+                  placeholder="Why you saved this…"
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => { setShowSaveModal(false); setSaveName(""); setSaveNotes(""); }}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 hover:bg-white/5 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!saveName.trim() || saving}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:text-indigo-400 text-white text-sm font-semibold transition-colors"
+              >
+                {savedOk ? "Saved ✓" : saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

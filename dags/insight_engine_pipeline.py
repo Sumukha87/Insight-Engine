@@ -8,6 +8,7 @@ Trigger manually from the Airflow UI (no schedule — runs on demand).
 Each stage runs the same Python module you'd run from the command line.
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -19,12 +20,12 @@ PYTHON = str(Path(__file__).parent.parent / ".venv" / "bin" / "python")
 
 ENV = {
     "PYTHONPATH": PROJECT_ROOT,
-    "NEO4J_URI": "bolt://localhost:7687",
-    "NEO4J_USER": "neo4j",
-    "NEO4J_PASSWORD": "changeme_strong_password",
-    "QDRANT_URL": "http://localhost:6333",
-    "OLLAMA_URL": "http://localhost:11434",
-    "MLFLOW_TRACKING_URI": "http://localhost:5000",
+    "NEO4J_URI": os.environ.get("NEO4J_URI", "bolt://neo4j:7687"),
+    "NEO4J_USER": os.environ.get("NEO4J_USER", "neo4j"),
+    "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"],
+    "QDRANT_URL": os.environ.get("QDRANT_URL", "http://qdrant:6333"),
+    "OLLAMA_URL": os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434"),
+    "MLFLOW_TRACKING_URI": os.environ.get("MLFLOW_TRACKING_URI", "http://mlflow:5000"),
 }
 
 with DAG(
@@ -98,11 +99,12 @@ with DAG(
 
     graphrag_query = BashOperator(
         task_id="graphrag_query_engine",
-        bash_command=f"cd {PROJECT_ROOT} && echo 'Stage 6 not built yet — skipping'",
+        bash_command=f"cd {PROJECT_ROOT} && {PYTHON} -m src.graph.graphrag_query --smoke-test",
         env=ENV,
         doc_md="""
-        **Stage 6 — GraphRAG Query Engine** *(not built yet)*
-        User query → Qdrant ANN → Neo4j traversal → Mistral synthesis.
+        **Stage 6 — GraphRAG Query Engine**
+        Smoke-tests the query engine end-to-end:
+        Qdrant ANN seed lookup → Neo4j traversal → Mistral synthesis.
         Script: `src/graph/graphrag_query.py`
         """,
     )

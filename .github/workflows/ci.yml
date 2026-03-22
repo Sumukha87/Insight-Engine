@@ -1,0 +1,138 @@
+name: CI
+
+# Runs on every PR (branch → develop, develop → main)
+# and on every push to develop (post-merge checks).
+# All jobs must pass before merge is allowed.
+# Configure branch protection rules:
+#   develop: require "Python Unit Tests", "Security Scan", "Frontend TypeScript + ESLint", "DVC + Params Validation"
+#   main:    require the same status checks
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+jobs:
+  test:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements/api.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements/api.txt pytest pytest-asyncio aiosqlite
+          pip install "bcrypt==3.2.2"  # passlib 1.7.x incompatible with bcrypt>=4.0
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v --no-header
+        # conftest.py injects SECRET_KEY + DATABASE_URL + NEO4J_PASSWORD — no repo secrets needed
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: bandit (high severity)
+        run: |
+          bandit -r src/backend/ src/pipeline/ \
+            --severity-level high \
+            --confidence-level high \
+            --skip B101 \
+            -q
+
+  frontend:
+    name: Frontend TypeScript + ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: npm ci
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npx next lint
+
+  dvc-validate:
+    name: DVC + Params Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pyyaml
+        run: pip install pyyaml
+
+      - name: Validate dvc.yaml
+        run: python -c "import yaml; yaml.safe_load(open('dvc.yaml')); print('dvc.yaml OK')"
+
+      - name: Validate params.yaml
+        run: python -c "import yaml; yaml.safe_load(open('params.yaml')); print('params.yaml OK')"
+
+      - name: Check required pipeline stages
+        run: |
+          python - <<'EOF'
+          import yaml, sys
+          stages = list(yaml.safe_load(open("dvc.yaml")).get("stages", {}).keys())
+          required = ["fetch_arxiv", "ner", "relations", "graph_loader", "quality_check"]
+          missing = [s for s in required if s not in stages]
+          if missing:
+              print(f"FAIL — missing DVC stages: {missing}")
+              sys.exit(1)
+          print(f"OK — all required stages present: {stages}")
+          EOF
+
+      - name: Check quality gate thresholds
+        run: |
+          python - <<'EOF'
+          import yaml, sys
+          qg = yaml.safe_load(open("params.yaml")).get("quality_gate", {})
+          required = [
+              "min_entity_count", "min_relation_count",
+              "min_graph_entity_nodes", "min_graph_edge_count",
+              "min_embedding_coverage", "min_cross_domain_ratio",
+          ]
+          missing = [k for k in required if k not in qg]
+          if missing:
+              print(f"FAIL — missing quality_gate keys: {missing}")
+              sys.exit(1)
+          print(f"OK — all thresholds present: {qg}")
+          EOF

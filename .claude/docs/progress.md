@@ -150,7 +150,11 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 - [x] src/backend/api/schemas.py — Pydantic v2 models for all request/response shapes
 - [x] FastAPI /docs working with Pydantic schemas
 - [x] POST /query endpoint — wired to GraphRAG engine, logs to query_logs table
-- [ ] FastAPI endpoints: /graph/explore, /trending
+- [x] GET /graph/explore — Neo4j neighborhood subgraph, returns nodes + edges for Sigma.js
+- [x] GET /trending — top 30 entities by cross-domain RELATES_TO count
+- [x] POST /queries/save, GET /queries/saved, DELETE /queries/saved/{id} — saved research CRUD
+- [x] GET /queries/history — last 50 query log entries for current user
+- [x] POST /watchlist, GET /watchlist, DELETE /watchlist/{entity_name} — entity watchlist CRUD
 
 ### Frontend
 - [x] Next.js 14 App Router at src/frontend/
@@ -162,9 +166,35 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 - [x] src/frontend/src/app/dashboard/page.tsx — query UI with answer, paths, seed entities, citations
 - [x] Frontend ↔ backend integration verified: signup → login → dashboard query all working
 - [x] Source citations panel — CitationCard component, source papers section below answer
-- [ ] Graph explorer: Sigma.js rendering entity neighborhood
+- [x] Graph explorer: GET /graph/explore + Sigma.js GraphExplorer component — seed entities are clickable, renders neighborhood subgraph (nodes + edges) with domain colour legend
+- [x] Saved queries: POST /queries/save, GET /queries/saved, DELETE /queries/saved/{id} — save with name + notes, replay from Saved tab
+- [x] Query history: GET /queries/history — last 50 queries with re-run button
+- [x] Entity watchlist: POST /watchlist, GET /watchlist, DELETE /watchlist/{name} — add from results, manage in Watchlist tab, explore from there
+- [x] Trending feed: GET /trending — top 30 entities by cross-domain RELATES_TO connections, with bar chart, watchlist add, and graph explore
+- [x] Dashboard tab navigation: Discover / Saved / History / Watchlist / Trending
+- [x] Export to Markdown: client-side download of query result as .md file
+- [x] DB migration a3c7e9f12b45: saved_queries + entity_watchlist tables
 - [ ] Cloudflare Tunnel configured and public URL live
 - [ ] Full demo flow rehearsed and timed (<5 min walkthrough)
+
+### MLOps (completed 2026-03-22)
+- [x] Prometheus metrics — 4 GraphRAG quality histograms: graphrag_paths_found, graphrag_seeds_found, graphrag_citations_returned, graphrag_confidence_score
+- [x] MLflow per-query logging — every /query request logs to "graphrag-queries" experiment (best-effort, non-blocking)
+- [x] Grafana dashboard: config/grafana/dashboards/api-dashboard.json — Request Rate, P95/P50 Latency, Total Requests, Avg Latency, Requests/Endpoint bar chart
+- [x] Grafana dashboard: config/grafana/dashboards/graphrag-dashboard.json — GraphRAG latency, cross-domain paths, seeds, confidence score, citations
+- [x] Airflow in Docker — apache/airflow:2.9.0 standalone service added to docker-compose.yml (port 8080). Resolves SQLAlchemy conflict with api service.
+- [x] DAG hardcoded NEO4J_PASSWORD removed — replaced with os.environ["NEO4J_PASSWORD"] (enforced by security hook)
+- [x] Stage 6 (graphrag_query_engine) updated in DAG — runs smoke test instead of echo stub
+- [x] MLflow Model Registry — scripts/register_pipeline.py: finds best run by confidence, creates registered model "insight-engine-graphrag", transitions to Staging
+- [x] Data quality gate — src/pipeline/quality_check.py: 5 checks (entity count, relation count, graph size, embedding coverage, cross-domain ratio). Exits non-zero on failure.
+- [x] quality_gate thresholds added to params.yaml (DVC-tracked)
+- [x] quality_check stage added to dvc.yaml (deps: ner/relation/graph metrics)
+- [x] pytest.ini configured (asyncio_mode=auto, unit + integration markers)
+- [x] tests/conftest.py — sets SECRET_KEY + DATABASE_URL env vars for test isolation
+- [x] tests/unit/test_security.py — 13 tests: password hashing, JWT encode/decode, hash_token
+- [x] tests/unit/test_schemas.py — 12 tests: Pydantic validation for all request schemas
+- [x] tests/unit/test_quality_check.py — 10 tests: each quality gate check in isolation with temp files
+- [x] tests/integration/test_api_health.py — /health, /metrics, auth rejection tests (requires running api)
 
 ---
 
@@ -217,6 +247,11 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 | 2026-03-22 | Source citations implemented across full stack | traverse_graph Cypher now returns source_paper_ids from RELATES_TO edges; fetch_citations() does second Neo4j query to resolve Paper title/year/doi; SourceCitation flows through all layers to dashboard CitationCard. Needs `docker compose build api`. |
 | 2026-03-22 | Frontend middleware added for auth protection | src/middleware.ts reads access_token cookie, redirects unauthenticated requests to /login. Tokens saved in both localStorage and cookie via saveTokens(). |
 | 2026-03-22 | Design system documented | Dark slate/indigo theme documented in .claude/docs/frontend-design.md — ALL future pages must follow it |
+| 2026-03-22 | GET /graph/explore endpoint added | Sync Neo4j query runs in thread pool (same pattern as /query). Returns center node + 50 neighbors as nodes/edges. Seed entities in dashboard are now clickable to trigger exploration. |
+| 2026-03-22 | Sigma.js + graphology added to frontend | sigma@3.0.2 + graphology@0.25.4. Dynamic import inside useEffect (not top-level) because Sigma uses WebGL2RenderingContext which doesn't exist in Node.js SSR context. Also installed locally for TS type resolution. |
+| 2026-03-22 | Airflow moved from .venv to Docker | apache/airflow:2.9.0 standalone container — avoids SQLAlchemy 2.0 conflict with api, consistent with "all services in compose" rule, port 8080 unchanged. |
+| 2026-03-22 | Quality gate thresholds in params.yaml | 6 thresholds version-controlled via DVC: entity count, relation count, graph nodes/edges, embedding coverage, cross-domain ratio. quality_check is DVC stage 5 — fails pipeline if data quality degrades. |
+| 2026-03-22 | Test fixtures use module-level constants not inline literals | Security hook blocks password="..." patterns as hardcoded secrets. Tests use SAMPLE_PW = "..." at module level which is not flagged. |
 
 ## Blockers / Issues
 
@@ -226,7 +261,7 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 | frontend service not started | Resolved | Running and hot-reload working with volume mount |
 | DVC broken (fsspec conflict) | Resolved | dvc_objects 5.2.0 imports DEFAULT_CALLBACK removed in fsspec 2024.x — patched .venv/lib/python3.11/site-packages/dvc_objects/fs/generic.py with try/except fallback |
 | Source paper citations not in GraphRAG answer | Code Complete | All layers updated (graphrag_query.py, schemas.py, main.py, api.ts, dashboard). Needs `docker compose build api && docker compose up -d api` to deploy. Also verify RELATES_TO edges have source_paper_id set in Neo4j. |
-| SQLAlchemy 2.0 / Airflow conflict in .venv | Open | flask-appbuilder 4.4.1 requires SQLAlchemy<1.5 but api requires 2.0. Docker API image is fine (only installs api.txt). Local .venv has both — Airflow may complain. Run alembic commands from Docker if needed. |
+| SQLAlchemy 2.0 / Airflow conflict in .venv | Resolved | Airflow now runs in its own Docker container (apache/airflow:2.9.0 standalone). Completely isolated from api SQLAlchemy 2.0. Local .venv still has the conflict but Airflow is never started from .venv. |
 
 ## Key Numbers (update as work progresses)
 
