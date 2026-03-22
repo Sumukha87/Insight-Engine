@@ -15,4 +15,5 @@ alembic==1.13.*
 # Auth
 python-jose[cryptography]==3.3.*
 passlib[bcrypt]==1.7.*
+bcrypt==3.2.2          # passlib 1.7.x is incompatible with bcrypt>=4.0 (72-byte check)
 python-multipart==0.0.*

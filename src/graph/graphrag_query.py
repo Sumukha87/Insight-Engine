@@ -56,9 +56,19 @@ DEFAULT_MAX_PATHS = 20  # max paths sent to Mistral per seed
 
 @dataclass
 class GraphPath:
-    nodes: list[dict]     # [{"name": ..., "type": ..., "domain": ...}, ...]
-    relations: list[str]  # ["TREATS", "IMPROVES", ...]
+    nodes: list[dict]          # [{"name": ..., "type": ..., "domain": ...}, ...]
+    relations: list[str]       # ["TREATS", "IMPROVES", ...]
     hops: int
+    source_paper_ids: list[str] = None  # doc_ids from RELATES_TO edge properties
+
+
+@dataclass
+class SourceCitation:
+    doc_id: str
+    title: str
+    year: int
+    doi: str | None
+    domain: str | None
 
 
 @dataclass
@@ -67,6 +77,7 @@ class QueryResult:
     answer: str
     paths: list[GraphPath]
     seed_entities: list[str]
+    sources: list[SourceCitation]
     confidence: float
     latency_ms: int
 
@@ -152,10 +163,11 @@ def traverse_graph(driver: Driver, seed: dict, max_paths: int) -> list[GraphPath
             WITH path,
                  [n IN nodes(path) | {name: n.name, type: n.type, domain: n.domain}] AS path_nodes,
                  [r IN relationships(path) | coalesce(r.relation, 'RELATES_TO')]     AS relations,
+                 [r IN relationships(path) | r.source_paper_id]                      AS source_paper_ids,
                  length(path) AS hops,
                  head(nodes(path)).domain AS seed_domain
             WHERE ANY(n IN tail(nodes(path)) WHERE n.domain <> seed_domain)
-            RETURN path_nodes, relations, hops
+            RETURN path_nodes, relations, source_paper_ids, hops
             ORDER BY hops ASC
             LIMIT $limit
             """,
@@ -165,12 +177,46 @@ def traverse_graph(driver: Driver, seed: dict, max_paths: int) -> list[GraphPath
 
     paths = []
     for rec in records:
+        raw_ids = rec.get("source_paper_ids") or []
+        paper_ids = [pid for pid in raw_ids if pid]
         paths.append(GraphPath(
             nodes=rec["path_nodes"],
             relations=rec["relations"],
             hops=rec["hops"],
+            source_paper_ids=paper_ids,
         ))
     return paths
+
+
+# ---------------------------------------------------------------------------
+# Step 3b — look up source papers for citations
+# ---------------------------------------------------------------------------
+
+
+def fetch_citations(driver: Driver, doc_ids: list[str]) -> list[SourceCitation]:
+    """Look up Paper nodes by doc_id and return citation metadata."""
+    if not doc_ids:
+        return []
+    with driver.session() as session:
+        records = session.run(
+            """
+            UNWIND $doc_ids AS doc_id
+            MATCH (p:Paper {doc_id: doc_id})
+            RETURN p.doc_id AS doc_id, p.title AS title,
+                   coalesce(p.year, 0) AS year, p.doi AS doi, p.domain AS domain
+            """,
+            doc_ids=doc_ids,
+        ).data()
+    return [
+        SourceCitation(
+            doc_id=rec["doc_id"],
+            title=rec["title"] or rec["doc_id"],
+            year=rec["year"] or 0,
+            doi=rec.get("doi"),
+            domain=rec.get("domain"),
+        )
+        for rec in records
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -306,6 +352,19 @@ def run_query(query: str, top_k: int = DEFAULT_TOP_K, max_paths: int = DEFAULT_M
 
         logger.info(f"Total unique cross-domain paths: {len(unique_paths)}")
 
+        # Collect unique source paper IDs from all paths
+        all_doc_ids: list[str] = []
+        seen_ids: set[str] = set()
+        for p in unique_paths:
+            for pid in (p.source_paper_ids or []):
+                if pid not in seen_ids:
+                    seen_ids.add(pid)
+                    all_doc_ids.append(pid)
+
+        # Look up source paper metadata
+        logger.info(f"Fetching {len(all_doc_ids)} source paper citations...")
+        sources = fetch_citations(driver, all_doc_ids[:50])  # cap at 50 citations
+
         # Step 4 — format context
         paths_text = format_paths_for_prompt(unique_paths, seeds)
 
@@ -321,6 +380,7 @@ def run_query(query: str, top_k: int = DEFAULT_TOP_K, max_paths: int = DEFAULT_M
             answer=answer,
             paths=unique_paths,
             seed_entities=seed_names,
+            sources=sources,
             confidence=confidence,
             latency_ms=latency_ms,
         )

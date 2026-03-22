@@ -195,18 +195,27 @@ pytest tests/unit/ -v --no-header
 - [x] GET /health — checks postgres, neo4j, qdrant, ollama
 - [x] Prometheus metrics wired (/metrics endpoint)
 - [x] src/backend/api/schemas.py — Pydantic v2 models for all request/response shapes
+- [x] FastAPI /docs working with Pydantic schemas
+- [x] POST /query endpoint — wired to GraphRAG engine, logs to query_logs table
 - [x] Next.js 14 App Router at src/frontend/
-- [x] src/frontend/src/lib/api.ts — typed fetch client for all auth endpoints
+- [x] src/frontend/src/lib/api.ts — typed fetch client for all auth + query endpoints
 - [x] src/frontend/src/app/signup/page.tsx — full signup form (react-hook-form + zod)
+- [x] src/frontend/src/app/login/page.tsx — login form with dark theme
+- [x] src/frontend/src/app/page.tsx — redirects to /login (no default Next.js page)
+- [x] src/frontend/src/middleware.ts — protects all routes except /login and /signup
+- [x] src/frontend/src/app/dashboard/page.tsx — query UI with answer, paths, seed entities, citations
+- [x] Frontend ↔ backend integration verified: signup → login → dashboard query all working
+- [x] Source citations panel — CitationCard component, source papers section below answer
 
 ### Open Blockers
-- Source paper citations not in GraphRAG answer — RELATES_TO edges have source_paper_id but it is not surfaced in graphrag_query.py response yet
+- **API container needs rebuild** — citations code complete, run: `docker compose build api && docker compose up -d api`
+- Verify source_paper_id set on edges: `MATCH ()-[r:RELATES_TO]->() WHERE r.source_paper_id IS NOT NULL RETURN count(r)`
 - SQLAlchemy 2.0 / Airflow conflict in .venv — flask-appbuilder 4.4.1 requires SQLAlchemy<1.5 but api requires 2.0. Docker API image is fine (only installs api.txt). Local .venv has both — Airflow may complain. Run alembic commands from Docker if needed.
 
 ### Recent Decisions
-- 2026-03-21: JWT access + opaque refresh token auth (Access token: JWT 60min, stateless verify + DB revocation check. Refresh token: opaque 32-byte hex, SHA-256 hashed in DB, 30-day, single-use rotation with replay detection.)
-- 2026-03-21: Entity (name, type) composite MERGE key for User model (User table uses UUID PK, email unique index. Org created on signup with owner membership.)
-- 2026-03-21: Security hooks added (PreToolUse hooks block hardcoded secrets, SQL string interpolation, and credential patterns in code. Security is top priority.)
+- 2026-03-22: Source citations implemented across full stack (traverse_graph Cypher now returns source_paper_ids from RELATES_TO edges; fetch_citations() does second Neo4j query to resolve Paper title/year/doi; SourceCitation flows through all layers to dashboard CitationCard. Needs `docker compose build api`.)
+- 2026-03-22: Frontend middleware added for auth protection (src/middleware.ts reads access_token cookie, redirects unauthenticated requests to /login. Tokens saved in both localStorage and cookie via saveTokens().)
+- 2026-03-22: Design system documented (Dark slate/indigo theme documented in .claude/docs/frontend-design.md — ALL future pages must follow it)
 
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
@@ -226,6 +235,6 @@ pytest tests/unit/ -v --no-header
 - Commits: conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`).
 
 ## Docs
-- 
-See @docs/architecture.md for the overall architechure 
-- See @docs/stack.md for all the stck we are using 
+- See @docs/architecture.md for the overall architecture
+- See @docs/stack.md for all the stack we are using
+- See @docs/frontend-design.md for the canonical frontend UI theme — ALL new pages and components must follow this

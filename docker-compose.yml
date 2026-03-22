@@ -32,7 +32,7 @@ services:
     volumes:
       - ./volumes/qdrant:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "grep -q ':18BD' /proc/net/tcp6 2>/dev/null || grep -q ':18BD' /proc/net/tcp"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -132,8 +132,11 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
     volumes:
       - ./volumes/pgadmin:/var/lib/pgadmin
+      - ./config/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./config/pgadmin/pgpass:/pgpass:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -150,7 +153,9 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      QDRANT_URL: http://qdrant:6333
       OLLAMA_HOST: http://host.docker.internal:11434
+      OLLAMA_URL: http://host.docker.internal:11434
       REDIS_URL: redis://redis:6379
       MLFLOW_TRACKING_URI: http://mlflow:5000
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/insight_engine
@@ -163,7 +168,7 @@ services:
       neo4j:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started  # qdrant has no curl/wget — health check uses /proc/net/tcp
       redis:
         condition: service_healthy
       postgres:
@@ -205,6 +210,10 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      WATCHPACK_POLLING: "true"   # required for file-watch in Docker on WSL2
+    volumes:
+      - ./src/frontend/src:/app/src
+      - ./src/frontend/public:/app/public
     depends_on:
       - api
 

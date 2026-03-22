@@ -61,10 +61,22 @@ class SessionResponse(BaseModel):
 
 # ── GraphRAG query ────────────────────────────────────────────────────────────
 
+class GraphNode(BaseModel):
+    name: str
+    type: str
+    domain: str
+
+
 class GraphPath(BaseModel):
-    nodes: list[str]
-    edges: list[str]
-    domains: list[str]
+    nodes: list[GraphNode]
+    relations: list[str]
+    hops: int
+
+
+class QueryRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    max_paths: int = 20
 
 
 class SourceCitation(BaseModel):
@@ -72,18 +84,13 @@ class SourceCitation(BaseModel):
     title: str
     year: int
     doi: str | None
-    relevance_score: float
-
-
-class QueryRequest(BaseModel):
-    query: str
-    target_domain: str | None = None
-    max_paths: int = 20
+    domain: str | None
 
 
 class QueryResponse(BaseModel):
     answer: str
     paths: list[GraphPath]
+    seed_entities: list[str]
     sources: list[SourceCitation]
     confidence: float
     latency_ms: int
