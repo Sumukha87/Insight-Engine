@@ -10,3 +10,11 @@ relations:
 graph:
   entity_batch_size: 500
   relation_batch_size: 1000
+
+quality_gate:
+  min_entity_count: 1000000
+  min_relation_count: 500000
+  min_graph_entity_nodes: 500000
+  min_graph_edge_count: 500000
+  min_embedding_coverage: 0.95
+  min_cross_domain_ratio: 0.50

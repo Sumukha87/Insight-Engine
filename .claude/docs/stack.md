@@ -16,7 +16,7 @@
 | RAG framework | LlamaIndex            | 0.10.x    | KnowledgeGraphIndex connects to Neo4j natively   |
 | Data version  | DVC                   | 3.x       | Git-like versioning for data files and pipelines |
 | ML tracking   | MLflow                | 2.x       | Local experiment tracking, model registry        |
-| Orchestration | Apache Airflow        | 2.9.0     | DAG-based pipeline scheduling — installed in .venv, UI at :8080, start with bash scripts/start_airflow.sh |
+| Orchestration | Apache Airflow        | 2.9.0     | DAG-based pipeline scheduling — runs in Docker (ie-airflow), UI at :8080, start with `docker compose up -d airflow` |
 | SQL DB        | PostgreSQL            | 16 (Alpine)| User/auth/session storage, Alembic migrations    |
 | SQL ORM       | SQLAlchemy (async)    | 2.0.x     | Mapped columns, asyncpg driver, Alembic          |
 | DB GUI        | pgAdmin 4             | 8.6       | Visual table browser, query tool — port :5050    |

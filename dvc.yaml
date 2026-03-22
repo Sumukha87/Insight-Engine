@@ -44,6 +44,24 @@ stages:
     metrics:
       - metrics/graph_metrics.json:
           cache: false
+
+  quality_check:
+    cmd: python -m src.pipeline.quality_check
+    deps:
+      - src/pipeline/quality_check.py
+      - metrics/ner_metrics.json
+      - metrics/relation_metrics.json
+      - metrics/graph_metrics.json
+    params:
+      - quality_gate.min_entity_count
+      - quality_gate.min_relation_count
+      - quality_gate.min_graph_entity_nodes
+      - quality_gate.min_graph_edge_count
+      - quality_gate.min_embedding_coverage
+      - quality_gate.min_cross_domain_ratio
+    metrics:
+      - metrics/quality_report.json:
+          cache: false
   relations:
     cmd: python -m src.nlp.relation_extractor
     deps:

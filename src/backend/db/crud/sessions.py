@@ -40,7 +40,9 @@ async def get_by_id(db: AsyncSession, session_id: uuid.UUID) -> AuthSession | No
     return result.scalar_one_or_none()
 
 
-async def list_active_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[AuthSession]:
+async def list_active_for_user(
+    db: AsyncSession, user_id: uuid.UUID
+) -> list[AuthSession]:
     result = await db.execute(
         select(AuthSession).where(
             AuthSession.user_id == user_id,
