@@ -99,6 +99,7 @@ def check_embedding_coverage(thresholds: dict) -> tuple[bool, dict]:
         # Fall back: count entities in Qdrant via REST if available
         try:
             import httpx
+
             qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
             resp = httpx.get(f"{qdrant_url}/collections/entities", timeout=5)
             embedded = resp.json()["result"]["vectors_count"]

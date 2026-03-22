@@ -3,16 +3,13 @@ Unit tests for src/backend/api/schemas.py
 
 Tests Pydantic v2 validation rules without any external services.
 """
+
 import pytest
 from pydantic import ValidationError
 
-from src.backend.api.schemas import (
-    LoginRequest,
-    QueryRequest,
-    RegisterRequest,
-    SaveQueryRequest,
-    WatchlistAddRequest,
-)
+from src.backend.api.schemas import (LoginRequest, QueryRequest,
+                                     RegisterRequest, SaveQueryRequest,
+                                     WatchlistAddRequest)
 
 VALID_PW = "strongpassword"
 SHORT_PW = "short"
@@ -113,7 +110,7 @@ class TestSaveQueryRequest:
         req = SaveQueryRequest(
             name="My research",
             query_text="aerospace materials",
-            result_json={"answer": "test", "paths": []},
+            result={"answer": "test", "paths": []},
         )
         assert req.name == "My research"
 
@@ -121,7 +118,7 @@ class TestSaveQueryRequest:
         req = SaveQueryRequest(
             name="Research",
             query_text="query",
-            result_json={},
+            result={},
         )
         assert req.notes is None
 

@@ -1,6 +1,7 @@
 """
 Shared pytest fixtures for Insight-Engine test suite.
 """
+
 import os
 
 import pytest

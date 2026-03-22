@@ -1,10 +1,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, field_validator
-
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -61,6 +61,7 @@ class SessionResponse(BaseModel):
 
 # ── GraphRAG query ────────────────────────────────────────────────────────────
 
+
 class GraphNode(BaseModel):
     name: str
     type: str
@@ -74,7 +75,7 @@ class GraphPath(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    query: str
+    query: str = Field(..., min_length=1)
     top_k: int = 5
     max_paths: int = 20
 
@@ -98,10 +99,11 @@ class QueryResponse(BaseModel):
 
 # ── Saved queries ─────────────────────────────────────────────────────────────
 
+
 class SaveQueryRequest(BaseModel):
     name: str
     query_text: str
-    result: dict          # full QueryResponse serialised as dict
+    result: dict  # full QueryResponse serialised as dict
     notes: str | None = None
 
 
@@ -118,6 +120,7 @@ class SavedQueryItem(BaseModel):
 
 # ── History ───────────────────────────────────────────────────────────────────
 
+
 class HistoryItem(BaseModel):
     id: uuid.UUID
     query_text: str
@@ -126,6 +129,7 @@ class HistoryItem(BaseModel):
 
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
+
 
 class WatchlistAddRequest(BaseModel):
     entity_name: str
@@ -145,6 +149,7 @@ class WatchlistItem(BaseModel):
 
 # ── Trending ──────────────────────────────────────────────────────────────────
 
+
 class TrendingEntity(BaseModel):
     name: str
     domain: str
@@ -153,6 +158,7 @@ class TrendingEntity(BaseModel):
 
 
 # ── Graph explore ─────────────────────────────────────────────────────────────
+
 
 class ExploreNode(BaseModel):
     name: str
@@ -174,6 +180,7 @@ class GraphExploreResponse(BaseModel):
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
+
 
 class HealthResponse(BaseModel):
     status: str

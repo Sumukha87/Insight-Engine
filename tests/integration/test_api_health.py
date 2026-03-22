@@ -7,6 +7,7 @@ These tests require the API container to be running:
 Run with:
     pytest tests/integration/ -v -m integration
 """
+
 import os
 
 import httpx

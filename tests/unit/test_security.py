@@ -4,16 +4,13 @@ Unit tests for src/backend/auth/security.py
 Tests password hashing, JWT creation/decode, and token hashing.
 All tests run without any external services.
 """
+
 import pytest
 from jose import JWTError
 
-from src.backend.auth.security import (
-    create_access_token,
-    decode_token,
-    hash_password,
-    hash_token,
-    verify_password,
-)
+from src.backend.auth.security import (create_access_token, decode_token,
+                                       hash_password, hash_token,
+                                       verify_password)
 
 SAMPLE_PW = "correcthorsebatterystaple"
 OTHER_PW = "wrongpassword"
@@ -47,6 +44,7 @@ class TestPasswordHashing:
 class TestJWT:
     def test_create_and_decode(self):
         import uuid
+
         user_id = str(uuid.uuid4())
         token = create_access_token(subject=user_id)
         decoded_id = decode_token(token)

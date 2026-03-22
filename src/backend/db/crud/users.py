@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.db.models import Membership, MemberRole, Organization, UsageQuota, User
+from src.backend.db.models import (MemberRole, Membership, Organization,
+                                   UsageQuota, User)
 
 
 async def get_by_email(db: AsyncSession, email: str) -> User | None:
@@ -40,12 +41,14 @@ async def create_user_with_org(
     await db.flush()
 
     db.add(Membership(user_id=user.id, org_id=org.id, role=MemberRole.owner))
-    db.add(UsageQuota(
-        org_id=org.id,
-        period_start=datetime.now(timezone.utc),
-        queries_used=0,
-        queries_limit=100,
-    ))
+    db.add(
+        UsageQuota(
+            org_id=org.id,
+            period_start=datetime.now(timezone.utc),
+            queries_used=0,
+            queries_limit=100,
+        )
+    )
 
     await db.commit()
     await db.refresh(user)

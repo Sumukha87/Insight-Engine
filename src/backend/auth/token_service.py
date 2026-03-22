@@ -5,10 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.backend.auth.security import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    create_access_token,
-)
+from src.backend.auth.security import (ACCESS_TOKEN_EXPIRE_MINUTES,
+                                       create_access_token)
 from src.backend.db.crud import sessions as sessions_crud
 from src.backend.db.crud import tokens as tokens_crud
 from src.backend.db.models import AuthSession, RefreshToken, User
@@ -92,6 +90,7 @@ async def refresh_tokens(
 
     # Issue fresh pair
     from src.backend.db.crud import users as users_crud
+
     user = await users_crud.get_by_id(db, token.user_id)
     if user is None or not user.is_active:
         return None
@@ -99,7 +98,9 @@ async def refresh_tokens(
     return await issue_tokens(db, user, user_agent=user_agent, ip_address=ip_address)
 
 
-async def revoke_session_by_token_hash(db: AsyncSession, access_token_hash: str) -> None:
+async def revoke_session_by_token_hash(
+    db: AsyncSession, access_token_hash: str
+) -> None:
     session = await sessions_crud.get_by_token_hash(db, access_token_hash)
     if session and not session.is_revoked:
         await tokens_crud.revoke_by_session(db, session)

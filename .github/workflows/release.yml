@@ -32,7 +32,9 @@ jobs:
           cache-dependency-path: requirements/api.txt
 
       - name: Install dependencies
-        run: pip install -r requirements/api.txt pytest pytest-asyncio aiosqlite
+        run: |
+          pip install -r requirements/api.txt pytest pytest-asyncio aiosqlite
+          pip install "bcrypt==3.2.2"  # passlib 1.7.x incompatible with bcrypt>=4.0
 
       - name: Run unit tests
         run: pytest tests/unit/ -v --no-header
