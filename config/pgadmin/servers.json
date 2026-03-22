@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Insight Engine",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "insight_engine",
+      "Username": "insight_engine",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

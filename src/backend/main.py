@@ -1,6 +1,8 @@
+import asyncio
 import os
 import uuid
 from datetime import datetime, timezone
+from functools import partial
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -10,11 +12,16 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.backend.api.schemas import (
+    GraphNode,
+    GraphPath,
     HealthResponse,
     LoginRequest,
+    QueryRequest,
+    QueryResponse,
     RefreshRequest,
     RegisterRequest,
     SessionResponse,
+    SourceCitation,
     TokenResponse,
     UserResponse,
 )
@@ -192,7 +199,8 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         except Exception:
             return False
 
-    neo4j_host = os.getenv("NEO4J_URI", "neo4j:7687").split(":")[0]
+    neo4j_uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+    neo4j_host = neo4j_uri.split("//")[-1].split(":")[0]  # handles bolt://host:port
     neo4j_ok = await _check(f"http://{neo4j_host}:7474")
     qdrant_ok = await _check(f"http://{os.getenv('QDRANT_HOST', 'qdrant')}:{os.getenv('QDRANT_PORT', '6333')}/health")
     ollama_ok = await _check(f"{os.getenv('OLLAMA_HOST', 'http://ollama:11434')}/api/tags")
@@ -203,4 +211,74 @@ async def health(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         qdrant=qdrant_ok,
         ollama=ollama_ok,
         postgres=pg_ok,
+    )
+
+
+# ── Query ─────────────────────────────────────────────────────────────────────
+
+@app.post("/query", response_model=QueryResponse)
+async def query(
+    body: QueryRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> QueryResponse:
+    REQUEST_COUNT.labels(endpoint="/query").inc()
+
+    if not body.query.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Query cannot be empty")
+
+    # run_query is CPU/IO bound (Neo4j + Ollama) — run in thread pool to avoid blocking
+    from src.graph.graphrag_query import run_query
+    loop = asyncio.get_event_loop()
+    try:
+        with REQUEST_LATENCY.labels(endpoint="/query").time():
+            result = await loop.run_in_executor(
+                None,
+                partial(run_query, body.query, top_k=body.top_k, max_paths=body.max_paths),
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Query engine unavailable") from exc
+
+    # Log to query_logs (best-effort — don't fail the response if logging fails)
+    try:
+        await db.execute(
+            text(
+                "INSERT INTO query_logs (id, user_id, query_text, latency_ms, created_at) "
+                "VALUES (:id, :user_id, :query_text, :latency_ms, :created_at)"
+            ),
+            {
+                "id": str(uuid.uuid4()),
+                "user_id": str(current_user.id),
+                "query_text": body.query,
+                "latency_ms": result.latency_ms,
+                "created_at": datetime.now(timezone.utc),
+            },
+        )
+        await db.commit()
+    except Exception:
+        pass
+
+    return QueryResponse(
+        answer=result.answer,
+        paths=[
+            GraphPath(
+                nodes=[GraphNode(name=n["name"], type=n["type"], domain=n["domain"]) for n in p.nodes],
+                relations=p.relations,
+                hops=p.hops,
+            )
+            for p in result.paths
+        ],
+        seed_entities=result.seed_entities,
+        sources=[
+            SourceCitation(
+                doc_id=s.doc_id,
+                title=s.title,
+                year=s.year,
+                doi=s.doi,
+                domain=s.domain,
+            )
+            for s in result.sources
+        ],
+        confidence=result.confidence,
+        latency_ms=result.latency_ms,
     )
