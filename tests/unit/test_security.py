@@ -60,8 +60,10 @@ class TestJWT:
 
     def test_tampered_token_raises(self):
         token = create_access_token(subject="user-123")
-        # Flip the last character
-        tampered = token[:-1] + ("X" if token[-1] != "X" else "Y")
+        # Replace entire signature segment with garbage — flipping one char is flaky
+        # because base64url padding can tolerate single-char changes
+        header, payload, _ = token.split(".")
+        tampered = f"{header}.{payload}.invalidsignatureXXXXXXXX"
         with pytest.raises(JWTError):
             decode_token(tampered)
 
