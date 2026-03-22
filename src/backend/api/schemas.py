@@ -96,6 +96,62 @@ class QueryResponse(BaseModel):
     latency_ms: int
 
 
+# ── Saved queries ─────────────────────────────────────────────────────────────
+
+class SaveQueryRequest(BaseModel):
+    name: str
+    query_text: str
+    result: dict          # full QueryResponse serialised as dict
+    notes: str | None = None
+
+
+class SavedQueryItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    query_text: str
+    notes: str | None
+    created_at: datetime
+    result: dict
+
+    model_config = {"from_attributes": True}
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+class HistoryItem(BaseModel):
+    id: uuid.UUID
+    query_text: str
+    latency_ms: int | None
+    created_at: datetime
+
+
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+
+class WatchlistAddRequest(BaseModel):
+    entity_name: str
+    entity_type: str
+    entity_domain: str
+
+
+class WatchlistItem(BaseModel):
+    id: uuid.UUID
+    entity_name: str
+    entity_type: str
+    entity_domain: str
+    added_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ── Trending ──────────────────────────────────────────────────────────────────
+
+class TrendingEntity(BaseModel):
+    name: str
+    domain: str
+    type: str
+    cross_domain_connections: int
+
+
 # ── Graph explore ─────────────────────────────────────────────────────────────
 
 class ExploreNode(BaseModel):

@@ -18,15 +18,21 @@ from src.backend.api.schemas import (
     GraphNode,
     GraphPath,
     HealthResponse,
+    HistoryItem,
     LoginRequest,
     QueryRequest,
     QueryResponse,
     RefreshRequest,
     RegisterRequest,
+    SavedQueryItem,
+    SaveQueryRequest,
     SessionResponse,
     SourceCitation,
     TokenResponse,
+    TrendingEntity,
     UserResponse,
+    WatchlistAddRequest,
+    WatchlistItem,
 )
 from src.backend.auth.deps import CurrentUser, get_current_token
 from src.backend.auth.security import hash_token, hash_password, verify_password
@@ -37,6 +43,8 @@ from src.backend.auth.token_service import (
 )
 from src.backend.db.crud import sessions as sessions_crud
 from src.backend.db.crud import users as users_crud
+from src.backend.db.crud import saved_queries as saved_queries_crud
+from src.backend.db.crud import watchlist as watchlist_crud
 from src.backend.db.session import get_db
 
 # ── Prometheus ────────────────────────────────────────────────────────────────
@@ -376,3 +384,156 @@ async def graph_explore(
         nodes=[ExploreNode(**n) for n in result["nodes"]],
         edges=[ExploreEdge(**e) for e in result["edges"]],
     )
+
+
+# ── Saved queries ──────────────────────────────────────────────────────────────
+
+@app.post("/queries/save", response_model=SavedQueryItem, status_code=status.HTTP_201_CREATED)
+async def save_query(
+    body: SaveQueryRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> SavedQueryItem:
+    REQUEST_COUNT.labels(endpoint="/queries/save").inc()
+    sq = await saved_queries_crud.create(
+        db,
+        user_id=current_user.id,
+        name=body.name,
+        query_text=body.query_text,
+        result_json=body.result,
+        notes=body.notes,
+    )
+    return SavedQueryItem.model_validate(sq)
+
+
+@app.get("/queries/saved", response_model=list[SavedQueryItem])
+async def list_saved_queries(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> list[SavedQueryItem]:
+    REQUEST_COUNT.labels(endpoint="/queries/saved").inc()
+    rows = await saved_queries_crud.list_for_user(db, current_user.id)
+    return [SavedQueryItem.model_validate(r) for r in rows]
+
+
+@app.delete("/queries/saved/{sq_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_saved_query(
+    sq_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    REQUEST_COUNT.labels(endpoint="/queries/saved/{id}").inc()
+    sq = await saved_queries_crud.get_by_id(db, sq_id)
+    if sq is None or sq.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved query not found")
+    await saved_queries_crud.delete(db, sq)
+
+
+# ── Query history ──────────────────────────────────────────────────────────────
+
+@app.get("/queries/history", response_model=list[HistoryItem])
+async def query_history(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> list[HistoryItem]:
+    REQUEST_COUNT.labels(endpoint="/queries/history").inc()
+    rows = await db.execute(
+        text(
+            "SELECT id, query_text, latency_ms, created_at FROM query_logs "
+            "WHERE user_id = :uid ORDER BY created_at DESC LIMIT 50"
+        ),
+        {"uid": str(current_user.id)},
+    )
+    return [
+        HistoryItem(
+            id=r.id,
+            query_text=r.query_text,
+            latency_ms=r.latency_ms,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+# ── Watchlist ──────────────────────────────────────────────────────────────────
+
+@app.post("/watchlist", response_model=WatchlistItem, status_code=status.HTTP_201_CREATED)
+async def add_to_watchlist(
+    body: WatchlistAddRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> WatchlistItem:
+    REQUEST_COUNT.labels(endpoint="/watchlist").inc()
+    item = await watchlist_crud.add(
+        db,
+        user_id=current_user.id,
+        entity_name=body.entity_name,
+        entity_type=body.entity_type,
+        entity_domain=body.entity_domain,
+    )
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Entity already on watchlist")
+    return WatchlistItem.model_validate(item)
+
+
+@app.get("/watchlist", response_model=list[WatchlistItem])
+async def get_watchlist(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> list[WatchlistItem]:
+    REQUEST_COUNT.labels(endpoint="/watchlist").inc()
+    items = await watchlist_crud.list_for_user(db, current_user.id)
+    return [WatchlistItem.model_validate(i) for i in items]
+
+
+@app.delete("/watchlist/{entity_name}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_from_watchlist(
+    entity_name: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    REQUEST_COUNT.labels(endpoint="/watchlist/{name}").inc()
+    removed = await watchlist_crud.remove(db, current_user.id, entity_name)
+    if not removed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not on watchlist")
+
+
+# ── Trending ───────────────────────────────────────────────────────────────────
+
+def _fetch_trending() -> list[dict]:
+    """Top entities by cross-domain RELATES_TO connections — runs in thread pool."""
+    from neo4j import GraphDatabase as Neo4jDriver
+
+    neo4j_uri = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_password = os.environ["NEO4J_PASSWORD"]
+
+    driver = Neo4jDriver.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+    try:
+        with driver.session() as session:
+            records = session.run(
+                """
+                MATCH (e:Entity)-[r:RELATES_TO]-(other:Entity)
+                WHERE e.domain <> other.domain
+                WITH e, count(DISTINCT other) AS cross_domain_connections
+                ORDER BY cross_domain_connections DESC
+                RETURN e.name AS name, e.domain AS domain, e.type AS type,
+                       cross_domain_connections
+                LIMIT 30
+                """
+            ).data()
+    finally:
+        driver.close()
+    return records
+
+
+@app.get("/trending", response_model=list[TrendingEntity])
+async def trending(current_user: CurrentUser) -> list[TrendingEntity]:
+    REQUEST_COUNT.labels(endpoint="/trending").inc()
+    loop = asyncio.get_event_loop()
+    try:
+        with REQUEST_LATENCY.labels(endpoint="/trending").time():
+            records = await loop.run_in_executor(None, _fetch_trending)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Trending unavailable") from exc
+    return [TrendingEntity(**r) for r in records]

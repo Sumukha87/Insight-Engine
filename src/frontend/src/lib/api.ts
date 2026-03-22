@@ -101,12 +101,95 @@ export const api = {
       headers: { Authorization: `Bearer ${access_token}` },
     });
   },
+
+  saveQuery(
+    access_token: string,
+    body: { name: string; query_text: string; result: QueryResponse; notes?: string }
+  ): Promise<SavedQueryItem> {
+    return request("/queries/save", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${access_token}` },
+      body: JSON.stringify(body),
+    });
+  },
+
+  listSaved(access_token: string): Promise<SavedQueryItem[]> {
+    return request("/queries/saved", { headers: { Authorization: `Bearer ${access_token}` } });
+  },
+
+  deleteSaved(access_token: string, id: string): Promise<void> {
+    return request(`/queries/saved/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+  },
+
+  history(access_token: string): Promise<HistoryItem[]> {
+    return request("/queries/history", { headers: { Authorization: `Bearer ${access_token}` } });
+  },
+
+  addWatchlist(
+    access_token: string,
+    body: { entity_name: string; entity_type: string; entity_domain: string }
+  ): Promise<WatchlistItem> {
+    return request("/watchlist", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${access_token}` },
+      body: JSON.stringify(body),
+    });
+  },
+
+  getWatchlist(access_token: string): Promise<WatchlistItem[]> {
+    return request("/watchlist", { headers: { Authorization: `Bearer ${access_token}` } });
+  },
+
+  removeWatchlist(access_token: string, entity_name: string): Promise<void> {
+    return request(`/watchlist/${encodeURIComponent(entity_name)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+  },
+
+  trending(access_token: string): Promise<TrendingEntity[]> {
+    return request("/trending", { headers: { Authorization: `Bearer ${access_token}` } });
+  },
 };
 
 export interface GraphNode {
   name: string;
   type: string;
   domain: string;
+}
+
+export interface SavedQueryItem {
+  id: string;
+  name: string;
+  query_text: string;
+  notes: string | null;
+  created_at: string;
+  result: QueryResponse;
+}
+
+export interface HistoryItem {
+  id: string;
+  query_text: string;
+  latency_ms: number | null;
+  created_at: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  entity_name: string;
+  entity_type: string;
+  entity_domain: string;
+  added_at: string;
+}
+
+export interface TrendingEntity {
+  name: string;
+  domain: string;
+  type: string;
+  cross_domain_connections: number;
 }
 
 export interface ExploreNode {

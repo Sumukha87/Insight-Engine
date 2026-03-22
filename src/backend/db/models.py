@@ -11,9 +11,10 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -71,6 +72,7 @@ class User(Base):
     query_logs: Mapped[list["QueryLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     sessions: Mapped[list["AuthSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    saved_queries: Mapped[list["SavedQuery"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 # ── Auth Session ──────────────────────────────────────────────────────────────
@@ -169,3 +171,33 @@ class UsageQuota(Base):
     queries_limit: Mapped[int] = mapped_column(BigInteger, nullable=False, default=100)
 
     organization: Mapped["Organization"] = relationship(back_populates="usage_quota")
+
+
+# ── Saved Query ───────────────────────────────────────────────────────────────
+
+class SavedQuery(Base):
+    __tablename__ = "saved_queries"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    query_text: Mapped[str] = mapped_column(Text, nullable=False)
+    result: Mapped[dict] = mapped_column("result_json", JSONB, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    user: Mapped["User"] = relationship(back_populates="saved_queries")
+
+
+# ── Entity Watchlist ──────────────────────────────────────────────────────────
+
+class EntityWatchlist(Base):
+    __tablename__ = "entity_watchlist"
+    __table_args__ = (UniqueConstraint("user_id", "entity_name", name="uq_watchlist_user_entity"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    entity_domain: Mapped[str] = mapped_column(String(100), nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

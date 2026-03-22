@@ -163,6 +163,13 @@ Target: Weeks 7–9 (Phase 3 — FastAPI + Next.js UI)
 - [x] Frontend ↔ backend integration verified: signup → login → dashboard query all working
 - [x] Source citations panel — CitationCard component, source papers section below answer
 - [x] Graph explorer: GET /graph/explore + Sigma.js GraphExplorer component — seed entities are clickable, renders neighborhood subgraph (nodes + edges) with domain colour legend
+- [x] Saved queries: POST /queries/save, GET /queries/saved, DELETE /queries/saved/{id} — save with name + notes, replay from Saved tab
+- [x] Query history: GET /queries/history — last 50 queries with re-run button
+- [x] Entity watchlist: POST /watchlist, GET /watchlist, DELETE /watchlist/{name} — add from results, manage in Watchlist tab, explore from there
+- [x] Trending feed: GET /trending — top 30 entities by cross-domain RELATES_TO connections, with bar chart, watchlist add, and graph explore
+- [x] Dashboard tab navigation: Discover / Saved / History / Watchlist / Trending
+- [x] Export to Markdown: client-side download of query result as .md file
+- [x] DB migration a3c7e9f12b45: saved_queries + entity_watchlist tables
 - [ ] Cloudflare Tunnel configured and public URL live
 - [ ] Full demo flow rehearsed and timed (<5 min walkthrough)
 
