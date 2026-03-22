@@ -236,14 +236,23 @@ pytest tests/unit/ -v --no-header
 - [x] tests/unit/test_schemas.py — 12 tests: Pydantic validation for all request schemas
 - [x] tests/unit/test_quality_check.py — 10 tests: each quality gate check in isolation with temp files
 - [x] tests/integration/test_api_health.py — /health, /metrics, auth rejection tests (requires running api)
+- [x] .github/workflows/ci.yml — runs on every PR to develop/main and on push to develop
+- [x] .github/workflows/release.yml — runs on push to main only
+- [x] GitHub Container Registry (ghcr.io) — free Docker image registry
+- [x] README.md — full rewrite: project thesis, 4 modules, architecture diagram, quickstart, service URLs, demo query, project structure, CI/CD flow, MLOps section, tech stack table
+- [x] test_tampered_token_raises fixed — full signature segment replacement (not single-char flip; base64url padding tolerates single-char changes)
+- [x] api.ts ESLint no-explicit-any fixed — `(data as { detail?: unknown })` and `(d: { msg?: string })`
+- [x] src/backend/main.py bandit MD5 fix — `hashlib.md5(..., usedforsecurity=False)  # nosec B324`
+- [x] QueryRequest empty string validation — `query: str = Field(..., min_length=1)`
+- [x] WSL2 locale warning fixed — `sudo locale-gen en_US.UTF-8`
 
 ### Open Blockers
 - _(none)_
 
 ### Recent Decisions
-- 2026-03-22: Airflow moved from .venv to Docker (apache/airflow:2.9.0 standalone container — avoids SQLAlchemy 2.0 conflict with api, consistent with "all services in compose" rule, port 8080 unchanged.)
-- 2026-03-22: Quality gate thresholds in params.yaml (6 thresholds version-controlled via DVC: entity count, relation count, graph nodes/edges, embedding coverage, cross-domain ratio. quality_check is DVC stage 5 — fails pipeline if data quality degrades.)
-- 2026-03-22: Test fixtures use module-level constants not inline literals (Security hook blocks password="..." patterns as hardcoded secrets. Tests use SAMPLE_PW = "..." at module level which is not flagged.)
+- 2026-03-22: JWT tamper test uses full signature replacement (Flipping one character in a JWT signature is flaky — base64url padding can tolerate it. Replacing the entire third segment with garbage is deterministically invalid.)
+- 2026-03-22: isort must run before black with --profile black flag (Without --profile black, isort reformats files after black, causing black to fail. Always: `isort --profile black` first, then `black`.)
+- 2026-03-22: bcrypt must be pinned to 3.2.2 in CI (passlib 1.7.x is incompatible with bcrypt>=4.0. pip sometimes installs latest (5.x). Explicit `pip install "bcrypt==3.2.2"` step added after requirements install in both workflows.)
 
 ### Key Numbers
 - Papers ingested: 229,498 (12 domains, arXiv)
